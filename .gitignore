@@ -1,0 +1,5 @@
+*.d
+*.o
+hode
+hode.ini
+setup.cfg
