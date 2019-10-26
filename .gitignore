@@ -1,5 +1,6 @@
 *.d
 *.o
+build
 hode
 hode.ini
 setup.cfg

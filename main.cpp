@@ -18,6 +18,10 @@
 #include "system.h"
 #include "video.h"
 
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+
 static const char *_title = "Heart of Darkness";
 
 static const char *_configIni = "hode.ini";
@@ -120,6 +124,10 @@ static int handleConfigIni(void *userdata, const char *section, const char *name
 }
 
 int main(int argc, char *argv[]) {
+#ifdef __SWITCH__
+	socketInitializeDefault();
+	nxlinkStdio();
+#endif
 	char *dataPath = 0;
 	int level = 0;
 	int checkpoint = 0;
@@ -213,5 +221,8 @@ int main(int argc, char *argv[]) {
 	g->_mix.fini();
 	delete g;
 	free(dataPath);
+#ifdef __SWITCH__
+	socketExit();
+#endif
 	return 0;
 }

@@ -2705,7 +2705,7 @@ void Game::levelMainLoop() {
 	}
 	_rnd.update();
 	_system->processEvents();
-	if (_system->inp.keyPressed(SYS_INP_ESC)) { // display exit confirmation screen
+	if (_system->inp.keyPressed(SYS_INP_ESC) || _system->inp.escape) { // display exit confirmation screen
 		if (displayHintScreen(-1, 0)) {
 			_system->inp.quit = true;
 			return;
