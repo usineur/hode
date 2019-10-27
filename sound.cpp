@@ -882,7 +882,11 @@ SssObject *Game::startSoundObject(int bankIndex, int sampleIndex, uint32_t flags
 
 	if (sample->framesCount != 0) {
 		SssFilter *filter = &_res->_sssFilters[bank->sssFilter];
+#ifdef __vita__
+		const int priority = CLIP(filter->priorityCurrent + sample->initPriority, 0l, 7l);
+#else
 		const int priority = CLIP(filter->priorityCurrent + sample->initPriority, 0, 7);
+#endif
 		uint32_t flags1 = flags & 0xFFF0F000;
 		flags1 |= ((sampleIndex & 0xF) << 16) | (bankIndex & 0xFFF);
 		SssPcm *pcm = &_res->_sssPcmTable[sample->pcm];
@@ -1093,13 +1097,21 @@ void Game::setSoundObjectPanning(SssObject *so) {
 		int volume = ((so->filter->volumeCurrent >> 16) * so->volume) >> 7;
 		int panning = 0;
 		if (so->panningPtr) {
+#ifdef __vita__
+			int priority = CLIP(so->priority + so->filter->priorityCurrent, 0l, 7l);
+#else
 			int priority = CLIP(so->priority + so->filter->priorityCurrent, 0, 7);
+#endif
 			if (so->panning == -2) {
 				volume = 0;
 				panning = kDefaultSoundPanning;
 				priority = 0;
 			} else {
+#ifdef __vita__
+				panning = CLIP(so->panning, 0l, 128l);
+#else
 				panning = CLIP(so->panning, 0, 128);
+#endif
 				volume >>= 2;
 				priority /= 2;
 			}
@@ -1110,7 +1122,11 @@ void Game::setSoundObjectPanning(SssObject *so) {
 				}
 			}
 		} else {
+#ifdef __vita__
+			panning = CLIP(so->panning + (so->filter->panningCurrent >> 16), 0l, 128l);
+#else
 			panning = CLIP(so->panning + (so->filter->panningCurrent >> 16), 0, 128);
+#endif
 		}
 		if (so->pcm == 0) {
 			return;

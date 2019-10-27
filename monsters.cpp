@@ -2662,8 +2662,13 @@ int Game::mstUpdateTaskMonsterObject1(Task *t) {
 			if ((m->monsterInfos[946] & 2) == 0) {
 				MstWalkNode *walkPath = m->walkNode;
 				int vf = READ_LE_UINT32(m->monsterInfos + 904);
+#ifdef __vita__
+				int vb = MAX<int32_t>(m->unk88, walkPath->coords[1][1] + vf);
+				int va = MIN<int32_t>(m->unk84, walkPath->coords[0][1] - vf);
+#else
 				int vb = MAX(m->unk88, walkPath->coords[1][1] + vf);
 				int va = MIN(m->unk84, walkPath->coords[0][1] - vf);
+#endif
 				const uint32_t indexUnk36 = walkPath->movingBoundsIndex2;
 				assert(indexUnk36 != kNone);
 				const uint32_t indexUnk49 = _res->_mstMovingBoundsIndexData[indexUnk36].indexUnk49;

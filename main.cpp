@@ -24,7 +24,11 @@
 
 static const char *_title = "Heart of Darkness";
 
+#ifdef __vita__
+static const char *_configIni = "ux0:data/hode/hode.ini";
+#else
 static const char *_configIni = "hode.ini";
+#endif
 
 static const char *_usage =
 	"hode - Heart of Darkness Interpreter\n"
@@ -128,7 +132,11 @@ int main(int argc, char *argv[]) {
 	socketInitializeDefault();
 	nxlinkStdio();
 #endif
+#ifdef __vita__
+	const char *dataPath = "ux0:data/hode";
+#else
 	char *dataPath = 0;
+#endif
 	int level = 0;
 	int checkpoint = 0;
 	bool resume = true;
@@ -220,7 +228,9 @@ int main(int argc, char *argv[]) {
 	_system->stopAudio();
 	g->_mix.fini();
 	delete g;
+#ifndef __vita__
 	free(dataPath);
+#endif
 #ifdef __SWITCH__
 	socketExit();
 #endif

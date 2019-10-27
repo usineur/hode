@@ -5,6 +5,9 @@ cmake_minimum_required(VERSION 3.0)
 include(FindPkgConfig)
 
 set(CMAKE_CXX_FLAGS "-g -Wall -pedantic -MMD ${CMAKE_CXX_FLAGS}")
+if(VITA)
+  set(ENV{PKG_CONFIG_PATH} "$ENV{VITASDK}/arm-vita-eabi/lib/pkgconfig")
+endif(VITA)
 
 pkg_check_modules(SDL2 sdl2 REQUIRED)
 
@@ -48,7 +51,7 @@ add_executable(${CMAKE_PROJECT_NAME}
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
-  ${SDL2_LIBRARIES}
+  ${SDL2_STATIC_LIBRARIES}
 )
 
 if(SWITCH_LIBNX)
@@ -66,3 +69,16 @@ if(SWITCH_LIBNX)
     DEPENDS ${CMAKE_PROJECT_NAME}.nro
   )
 endif(SWITCH_LIBNX)
+
+if(VITA)
+  include("${VITASDK}/share/vita.cmake" REQUIRED)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fpermissive")
+  vita_create_self(eboot.bin ${CMAKE_PROJECT_NAME} UNSAFE)
+  vita_create_vpk(${CMAKE_PROJECT_NAME}.vpk "HODEVITA1" eboot.bin
+    NAME ${CMAKE_PROJECT_NAME}
+    FILE res/icon0.png sce_sys/icon0.png
+    FILE res/bg.png sce_sys/livearea/contents/bg.png
+    FILE res/startup.png sce_sys/livearea/contents/startup.png
+    FILE res/template.xml sce_sys/livearea/contents/template.xml
+)
+endif(VITA)
