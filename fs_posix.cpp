@@ -8,6 +8,7 @@
 
 static const char *_suffixes[] = {
 	"setup.dat",
+	"setup.dax",
 	".paf",
 	"_hod.lvl",
 	"_hod.sss",

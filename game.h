@@ -83,10 +83,6 @@ struct Game {
 	static const uint8_t _lar1_spritesData[];
 	static const int16_t *_lar_screenMaskOffsets[];
 	static uint8_t _lar1_maskData[];
-	static uint8_t _lar1_gatesData[];
-	static uint8_t _lar2_gatesData[];
-	static BoundingBox _lar1_bboxData[];
-	static BoundingBox _lar2_bboxData[];
 
 	Level *_level;
 	Mixer _mix;
@@ -111,8 +107,8 @@ struct Game {
 	int _currentLevelCheckpoint;
 	bool _endLevel;
 	Sprite _spritesTable[kMaxSprites];
-	Sprite *_spritesListNextPtr; // pointer to the next free entry
-	Sprite *_spriteListPtrTable[kMaxSpriteTypes];
+	Sprite *_spritesNextPtr; // pointer to the next free entry
+	Sprite *_typeSpritesList[kMaxSpriteTypes];
 	uint8_t _directionKeyMask;
 	uint8_t _actionKeyMask;
 	uint8_t _currentRightScreen;
@@ -122,7 +118,7 @@ struct Game {
 	bool _fadePalette;
 	bool _hideAndyObjectFlag;
 	ShootLvlObjectData _shootLvlObjectDataTable[kMaxShootLvlObjectData];
-	ShootLvlObjectData *_shootLvlObjectDataList; // pointer to the next free entry
+	ShootLvlObjectData *_shootLvlObjectDataNextPtr; // pointer to the next free entry
 	LvlObject *_lvlObjectsList0;
 	LvlObject *_lvlObjectsList1;
 	LvlObject *_lvlObjectsList2;
@@ -182,7 +178,7 @@ struct Game {
 	uint8_t _mstOp54Table[32];
 	bool _mstDisabled;
 	LvlObject _declaredLvlObjectsList[kMaxLvlObjects];
-	LvlObject *_declaredLvlObjectsListHead; // pointer to the next free entry
+	LvlObject *_declaredLvlObjectsNextPtr; // pointer to the next free entry
 	int _declaredLvlObjectsListCount;
 	AndyLvlObjectData _andyObjectScreenData;
 	AnimBackgroundData _animBackgroundDataTable[kMaxBackgroundAnims];
@@ -275,7 +271,7 @@ struct Game {
 	void destroyLvlObject(LvlObject *o);
 	void setupPlasmaCannonPoints(LvlObject *ptr);
 	int testPlasmaCannonPointsDirection(int x1, int y1, int x2, int y2);
-	void preloadLevelScreenData(int num, int prev);
+	void preloadLevelScreenData(uint8_t num, uint8_t prev);
 	void loadLevelScreenSounds(int num);
 	void setLvlObjectPosRelativeToObject(LvlObject *ptr1, int num1, LvlObject *ptr2, int num2);
 	void setLvlObjectPosRelativeToPoint(LvlObject *ptr, int num, int x, int y);
@@ -360,10 +356,11 @@ struct Game {
 	LvlObject *findLvlObjectType2(int spriteNum, int screenNum);
 	LvlObject *findLvlObjectBoundingBox(BoundingBox *box);
 	void setLavaAndyAnimation(int yPos);
-	void updateSwitchesLar(int count, uint8_t *data, BoundingBox *r);
-	void updateSwitchesLar_checkSpectre(int num, uint8_t *p1, BoundingBox *r);
-	int updateSwitchesLar_checkAndy(int num, uint8_t *p1, BoundingBox *b, BoundingBox *r);
-	int updateSwitchesLar_toggle(bool flag, uint8_t dataNum, int screenNum, int boxNum, int anim);
+	void updateGatesLar(LvlObject *o, uint8_t *p, int num);
+	void updateSwitchesLar(int count, uint8_t *data, BoundingBox *r, uint8_t *gatesData);
+	void updateSwitchesLar_checkSpectre(int num, uint8_t *p1, BoundingBox *r, uint8_t *gatesData);
+	int updateSwitchesLar_checkAndy(int num, uint8_t *p1, BoundingBox *b, BoundingBox *r, uint8_t *gatesData);
+	int updateSwitchesLar_toggle(bool flag, uint8_t dataNum, int screenNum, int switchNum, int anim, const BoundingBox *switchBoundingBox);
 	void updateScreenMaskLar(uint8_t *p, uint8_t flag);
 	int clipAndyLvlObjectLar(BoundingBox *a, BoundingBox *b, bool flag);
 	void resetWormHoleSprites();
@@ -381,9 +378,6 @@ struct Game {
 	int objectUpdate_rock_case3(LvlObject *o);
 	int objectUpdate_rock_case4(LvlObject *o);
 
-	// level7_lar1.cpp
-	void updateGatesLar(LvlObject *o, uint8_t *p, int num);
-
 	// monsters.cpp
 	void mstMonster1ResetData(MonsterObject1 *m);
 	void mstMonster1ResetWalkPath(MonsterObject1 *m);
@@ -395,7 +389,7 @@ struct Game {
 	void mstMonster1SetScreenPosition(MonsterObject1 *m);
 	bool mstMonster1SetWalkingBounds(MonsterObject1 *m);
 	bool mstMonster1UpdateWalkPath(MonsterObject1 *m);
-	void initMonsterObject2_firefly(MonsterObject2 *m);
+	void mstMonster2InitFirefly(MonsterObject2 *m);
 	void mstMonster2ResetData(MonsterObject2 *m);
 	uint32_t mstMonster1GetNextWalkCode(MonsterObject1 *m);
 	int mstTaskSetNextWalkCode(Task *t);
@@ -408,7 +402,7 @@ struct Game {
 	void mstTaskSetMonster2ScreenPosition(Task *t);
 	int getMstDistance(int y, const AndyShootData *p) const;
 	void mstTaskUpdateScreenPosition(Task *t);
-	void shuffleMstUnk43(MstUnk43 *p);
+	void shuffleMstMonsterActionIndex(MstMonsterActionIndex *p);
 
 	void initMstCode();
 	void resetMstCode();

@@ -11,6 +11,7 @@
 #include "util.h"
 
 static const char *_setupDat = "SETUP.DAT";
+static const char *_setupDax = "SETUP.DAX";
 
 static const char *_prefixes[] = {
 	"rock",
@@ -56,7 +57,7 @@ static int readBytesAlign(File *f, uint8_t *buf, int len) {
 }
 
 Resource::Resource(const char *dataPath)
-	: _fs(dataPath) {
+	: _fs(dataPath), _isPsx(false) {
 
 	memset(_screensGrid, 0, sizeof(_screensGrid));
 	memset(_screensBasePos, 0, sizeof(_screensBasePos));
@@ -66,6 +67,7 @@ Resource::Resource(const char *dataPath)
 	_resLevelData0x470CTable = 0;
 	_resLevelData0x470CTablePtrHdr = 0;
 	_resLevelData0x470CTablePtrData = 0;
+	_lvlSssOffset = 0;
 
 	// sprites
 	memset(_resLevelData0x2988SizeTable, 0, sizeof(_resLevelData0x2988SizeTable));
@@ -113,8 +115,11 @@ Resource::~Resource() {
 bool Resource::sectorAlignedGameData() {
 	FILE *fp = _fs.openFile(_setupDat);
 	if (!fp) {
-		error("Unable to open '%s'", _setupDat);
-		return false;
+		fp = _fs.openFile(_setupDax);
+		if (!fp) {
+			error("Unable to open '%s' or '%s'", _setupDat, _setupDax);
+			return false;
+		}
 	}
 	bool ret = false;
 	uint8_t buf[2048];
@@ -126,7 +131,9 @@ bool Resource::sectorAlignedGameData() {
 }
 
 void Resource::loadSetupDat() {
-	openDat(_fs, _setupDat, _datFile);
+	if (!openDat(_fs, _setupDat, _datFile)) {
+		_isPsx = openDat(_fs, _setupDax, _datFile);
+	}
 
 	_datHdr.version = _datFile->readUint32();
 	if (_datHdr.version != 10 && _datHdr.version != 11) {
@@ -161,19 +168,21 @@ void Resource::loadSetupDat() {
 
 		uint32_t offset = 0;
 
-		// loading image
-		uint32_t size = READ_LE_UINT32(_loadingImageBuffer + offset); offset += 8;
-		offset += size + 768;
+		if (!_isPsx) {
+			// loading image
+			uint32_t size = READ_LE_UINT32(_loadingImageBuffer + offset); offset += 8;
+			offset += size + 768;
 
-		// loading animation
-		size = READ_LE_UINT32(_loadingImageBuffer + offset + 8); offset += 16;
-		offset += size;
+			// loading animation
+			size = READ_LE_UINT32(_loadingImageBuffer + offset + 8); offset += 16;
+			offset += size;
+		}
 
 		// font
 		static const int kFontSize = 16 * 16 * 64;
 		_fontBuffer = (uint8_t *)malloc(kFontSize);
 		if (_fontBuffer) {
-			size = READ_LE_UINT32(_loadingImageBuffer + offset); offset += 4;
+			/* size = READ_LE_UINT32(_loadingImageBuffer + offset); */ offset += 4;
 			if (_datHdr.version == 11) {
 				const uint32_t uncompressedSize = decodeLZW(_loadingImageBuffer + offset, _fontBuffer);
 				assert(uncompressedSize == kFontSize);
@@ -188,6 +197,9 @@ void Resource::loadSetupDat() {
 
 
 void Resource::loadDatHintImage(int num, uint8_t *dst, uint8_t *pal) {
+	if (_isPsx) {
+		return;
+	}
 	const int offset = _datHdr.hintsImageOffsetTable[num];
 	const int size = _datHdr.hintsImageSizeTable[num];
 	assert(size == 256 * 192);
@@ -254,77 +266,58 @@ void Resource::loadLevelData(int levelNum) {
 	snprintf(filename, sizeof(filename), "%s_HOD.SSS", levelName);
 	if (openDat(_fs, filename, _sssFile)) {
 		loadSssData(_sssFile);
+	} else if (_isPsx) {
+		assert((_lvlSssOffset & 0x7FF) == 0);
+		_lvlFile->seek(_lvlSssOffset, SEEK_SET);
+		loadSssData(_lvlFile, _lvlSssOffset);
 	} else {
 		warning("Unable to open '%s'", filename);
 		memset(&_sssHdr, 0, sizeof(_sssHdr));
 	}
 }
 
-void Resource::loadLvlScreenGridData(int num) {
-	_lvlFile->seekAlign(0x8 + num * 4);
-	_lvlFile->read(&_screensGrid[num * 4], 4);
-}
-
-void Resource::loadLvlScreenVectorData(int num) {
-	_lvlFile->seekAlign(0xA8 + num * 8);
-	LvlScreenVector *dat = &_screensBasePos[num];
-	dat->u = _lvlFile->readUint32();
-	dat->v = _lvlFile->readUint32();
-}
-
-void Resource::loadLvlScreenStateData(int num) {
-	_lvlFile->seekAlign(0x1E8 + num * 4);
-	LvlScreenState *dat = &_screensState[num];
-	dat->s0 = _lvlFile->readByte();
-	dat->s1 = _lvlFile->readByte();
-	dat->s2 = _lvlFile->readByte();
-	dat->s3 = _lvlFile->readByte();
-}
-
-void Resource::loadLvlScreenObjectData(int num) {
-	_lvlFile->seekAlign(0x288 + num * 96);
-	LvlObject *dat = &_resLvlScreenObjectDataTable[num];
-
-	dat->xPos = _lvlFile->readUint32();
-	dat->yPos = _lvlFile->readUint32();
-	dat->screenNum = _lvlFile->readByte();
-	dat->screenState = _lvlFile->readByte();
-	dat->dataNum = _lvlFile->readByte();
-	dat->frame = _lvlFile->readByte();
-	dat->anim = _lvlFile->readUint16();
-	dat->type = _lvlFile->readByte();
-	dat->spriteNum = _lvlFile->readByte();
-	dat->flags0 = _lvlFile->readUint16();
-	dat->flags1 = _lvlFile->readUint16();
-	dat->flags2 = _lvlFile->readUint16();
-	dat->objectUpdateType = _lvlFile->readByte();
-	dat->hitCount = _lvlFile->readByte();
-	const uint32_t objRef = _lvlFile->readUint32();
+void Resource::loadLvlScreenObjectData(LvlObject *dat, const uint8_t *src) {
+	const uint8_t *start = src;
+	dat->xPos = READ_LE_UINT32(src); src += 4;
+	dat->yPos = READ_LE_UINT32(src); src += 4;
+	dat->screenNum = *src++;
+	dat->screenState = *src++;
+	dat->dataNum = *src++;
+	dat->frame = *src++;
+	dat->anim = READ_LE_UINT16(src); src += 2;
+	dat->type = *src++;
+	dat->spriteNum = *src++;
+	dat->flags0 = READ_LE_UINT16(src); src += 2;
+	dat->flags1 = READ_LE_UINT16(src); src += 2;
+	dat->flags2 = READ_LE_UINT16(src); src += 2;
+	dat->objectUpdateType = *src++;
+	dat->hitCount = *src++;
+	const uint32_t objRef = READ_LE_UINT32(src); src  += 4;
 	if (objRef) {
 		dat->childPtr = &_dummyObject;
-		debug(kDebug_RESOURCE, "loadLvlObj num %d linkObjRef 0x%x", num, objRef);
+		debug(kDebug_RESOURCE, "loadLvlObj dat %p linkObjRef 0x%x", dat, objRef);
 	}
-	dat->width = _lvlFile->readUint16();
-	dat->height = _lvlFile->readUint16();
-	dat->directionKeyMask = _lvlFile->readByte();
-	dat->actionKeyMask = _lvlFile->readByte();
-	dat->currentSprite = _lvlFile->readUint16();
-	dat->currentSound = _lvlFile->readUint16();
-	dat->unk26 = _lvlFile->readByte();
-	dat->unk27 = _lvlFile->readByte();
-	dat->bitmapBits = 0; _lvlFile->readUint32();
-	dat->callbackFuncPtr = 0; _lvlFile->readUint32();
-	dat->dataPtr = 0; _lvlFile->readUint32();
-	dat->sssObject = 0; _lvlFile->readUint32();
-	dat->levelData0x2988 = 0; _lvlFile->readUint32();
+	dat->width = READ_LE_UINT16(src); src += 2;
+	dat->height = READ_LE_UINT16(src); src += 2;
+	dat->directionKeyMask = *src++;
+	dat->actionKeyMask = *src++;
+	dat->currentSprite = READ_LE_UINT16(src); src += 2;
+	dat->currentSound = READ_LE_UINT16(src); src += 2;
+	src += 2; // 0x26
+	dat->bitmapBits = 0; src += 4;
+	dat->callbackFuncPtr = 0; src += 4;
+	dat->dataPtr = 0; src += 4;
+	dat->sssObject = 0; src += 4;
+	dat->levelData0x2988 = 0; src += 4;
 	for (int i = 0; i < 8; ++i) {
-		dat->posTable[i].x = _lvlFile->readUint16();
-		dat->posTable[i].y = _lvlFile->readUint16();
+		dat->posTable[i].x = READ_LE_UINT16(src); src += 2;
+		dat->posTable[i].y = READ_LE_UINT16(src); src += 2;
 	}
-	dat->nextPtr = 0; _lvlFile->readUint32();
+	dat->nextPtr = 0; src += 4;
+	assert((src - start) == 96);
 }
 
-static uint32_t resFixPointersLevelData0x2988(uint8_t *src, uint8_t *ptr, LvlObjectData *dat) {
+static uint32_t resFixPointersLevelData0x2988(uint8_t *src, uint8_t *ptr, LvlObjectData *dat, bool isPsx) {
 	uint8_t *base = src;
 
 	dat->unk0 = *src++;
@@ -336,8 +329,7 @@ static uint32_t resFixPointersLevelData0x2988(uint8_t *src, uint8_t *ptr, LvlObj
 	dat->refCount = *src++;
 	dat->frame = *src++;
 	dat->anim = READ_LE_UINT16(src); src += 2;
-	dat->unkE = *src++;
-	dat->unkF = *src++;
+	src += 2; // 0xE
 	src += 4; // 0x10
 	uint32_t movesDataOffset = READ_LE_UINT32(src); src += 4; // 0x14
 	src += 4; // 0x18
@@ -391,6 +383,22 @@ static uint32_t resFixPointersLevelData0x2988(uint8_t *src, uint8_t *ptr, LvlObj
 		dat->coordsOffsetsTable = 0;
 	}
 
+	if (dat->unk0 == 1) { // fixed size offset table
+		assert(isPsx);
+		dat->framesOffsetsTable = (uint8_t *)malloc(dat->framesCount * sizeof(uint32_t));
+		uint32_t framesOffset = 6 * dat->framesCount;
+		if (READ_LE_UINT16(dat->framesData + framesOffset) == 0) {
+			framesOffset += 2;
+		}
+		for (int i = 0; i < dat->framesCount; ++i) {
+			const int size = READ_LE_UINT16(dat->framesData + i * 6);
+			WRITE_LE_UINT32(dat->framesOffsetsTable + i * sizeof(uint32_t), framesOffset);
+			framesOffset += size;
+		}
+		dat->coordsOffsetsTable = ptr;
+		return 0;
+	}
+
 	uint32_t framesOffset = 0;
 	for (int i = 0; i < dat->framesCount; ++i) {
 		const int size = READ_LE_UINT16(dat->framesData + framesOffset);
@@ -408,19 +416,23 @@ static uint32_t resFixPointersLevelData0x2988(uint8_t *src, uint8_t *ptr, LvlObj
 }
 
 void Resource::loadLvlSpriteData(int num) {
+	assert((unsigned int)num < kMaxSpriteTypes);
+
 	static const uint32_t baseOffset = 0x2988;
 
+	uint8_t buf[4 * 3];
 	_lvlFile->seekAlign(baseOffset + num * 16);
-	const uint32_t offset = _lvlFile->readUint32();
-	const uint32_t size = _lvlFile->readUint32();
-	const uint32_t readSize = _lvlFile->readUint32();
-	uint8_t *ptr = (uint8_t *)calloc(size, 1);
-	_lvlFile->seek(offset, SEEK_SET);
+	_lvlFile->read(buf, sizeof(buf));
+	const uint32_t offset = READ_LE_UINT32(&buf[0]);
+	const uint32_t size = READ_LE_UINT32(&buf[4]);
+	const uint32_t readSize = READ_LE_UINT32(&buf[8]);
+	assert(readSize <= size);
+	uint8_t *ptr = (uint8_t *)malloc(size);
+	_lvlFile->seek(_isPsx ? _lvlSssOffset + offset : offset, SEEK_SET);
 	_lvlFile->read(ptr, readSize);
 
 	LvlObjectData *dat = &_resLevelData0x2988Table[num];
-	const uint32_t readOffsetsSize = resFixPointersLevelData0x2988(ptr, ptr + readSize, dat);
-	assert(readSize <= size);
+	const uint32_t readOffsetsSize = resFixPointersLevelData0x2988(ptr, ptr + readSize, dat, _isPsx);
 	const uint32_t allocatedOffsetsSize = size - readSize;
 	assert(allocatedOffsetsSize == readOffsetsSize);
 
@@ -450,6 +462,8 @@ void Resource::loadLvlScreenMaskData() {
 	_lvlFile->read(_resLevelData0x470CTable, size);
 	_resLevelData0x470CTablePtrHdr = _resLevelData0x470CTable;
 	_resLevelData0x470CTablePtrData = _resLevelData0x470CTable + (kMaxScreens * 4) * (2 * sizeof(uint32_t));
+	// .sss is embedded in .lvl on PSX
+	_lvlSssOffset = offset + fioAlignSizeTo2048(size);
 }
 
 static const uint32_t _lvlTag = 0x484F4400; // 'HOD\x00'
@@ -473,17 +487,31 @@ void Resource::loadLvlData(File *fp) {
 	_lvlHdr.spritesCount = _lvlFile->readByte();
 	debug(kDebug_RESOURCE, "Resource::loadLvlData() %d %d %d %d", _lvlHdr.screensCount, _lvlHdr.staticLvlObjectsCount, _lvlHdr.otherLvlObjectsCount, _lvlHdr.spritesCount);
 
+	_lvlFile->seekAlign(0x8);
 	for (int i = 0; i < _lvlHdr.screensCount; ++i) {
-		loadLvlScreenGridData(i);
+		_lvlFile->read(_screensGrid[i], 4);
 	}
+	_lvlFile->seekAlign(0xA8);
 	for (int i = 0; i < _lvlHdr.screensCount; ++i) {
-		loadLvlScreenVectorData(i);
+		LvlScreenVector *dat = &_screensBasePos[i];
+		dat->u = _lvlFile->readUint32();
+		dat->v = _lvlFile->readUint32();
 	}
+	_lvlFile->seekAlign(0x1E8);
 	for (int i = 0; i < _lvlHdr.screensCount; ++i) {
-		loadLvlScreenStateData(i);
+		LvlScreenState *dat = &_screensState[i];
+		dat->s0 = _lvlFile->readByte();
+		dat->s1 = _lvlFile->readByte();
+		dat->s2 = _lvlFile->readByte();
+		dat->s3 = _lvlFile->readByte();
 	}
-	for (int i = 0; i < (0x2988 - 0x288) / 96; ++i) {
-		loadLvlScreenObjectData(i);
+	_lvlFile->seekAlign(0x288);
+	static const int kSizeOfLvlObject = 96;
+	for (int i = 0; i < (0x2988 - 0x288) / kSizeOfLvlObject; ++i) {
+		LvlObject *dat = &_resLvlScreenObjectDataTable[i];
+		uint8_t buf[kSizeOfLvlObject];
+		_lvlFile->read(buf, kSizeOfLvlObject);
+		loadLvlScreenObjectData(dat, buf);
 	}
 
 	loadLvlScreenMaskData();
@@ -504,12 +532,17 @@ void Resource::unloadLvlData() {
 		unloadLvlScreenBackgroundData(i);
 	}
 	for (unsigned int i = 0; i < kMaxSpriteTypes; ++i) {
+		LvlObjectData *dat = &_resLevelData0x2988Table[i];
+		if (dat->unk0 == 1) {
+			free(dat->framesOffsetsTable);
+			dat->framesOffsetsTable = 0;
+		}
 		free(_resLvlSpriteDataPtrTable[i]);
 		_resLvlSpriteDataPtrTable[i] = 0;
 	}
 }
 
-static uint32_t resFixPointersLevelData0x2B88(const uint8_t *src, uint8_t *ptr, uint8_t *offsetsPtr, LvlBackgroundData *dat) {
+static uint32_t resFixPointersLevelData0x2B88(const uint8_t *src, uint8_t *ptr, uint8_t *offsetsPtr, LvlBackgroundData *dat, bool isPsx) {
 	const uint8_t *start = src;
 
 	dat->backgroundCount = *src++;
@@ -525,7 +558,7 @@ static uint32_t resFixPointersLevelData0x2B88(const uint8_t *src, uint8_t *ptr, 
 	dat->dataUnk45Count = *src++;
 	dat->unkB = *src++;
 	dat->backgroundPaletteId = READ_LE_UINT16(src); src += 2;
-	dat->backgroundBitmapId  = READ_LE_UINT16(src); src += 2;
+	dat->backgroundBitmapId = READ_LE_UINT16(src); src += 2;
 	for (int i = 0; i < 4; ++i) {
 		const uint32_t offs = READ_LE_UINT32(src); src += 4;
 		dat->backgroundPaletteTable[i] = (offs != 0) ? ptr + offs : 0;
@@ -546,20 +579,16 @@ static uint32_t resFixPointersLevelData0x2B88(const uint8_t *src, uint8_t *ptr, 
 		const uint32_t offs = READ_LE_UINT32(src); src += 4;
 		dat->backgroundSoundTable[i] = (offs != 0) ? ptr + offs : 0;
 	}
-	for (int i = 0; i < 4; ++i) {
+	for (int i = 0; i < 8; ++i) {
 		const uint32_t offs = READ_LE_UINT32(src); src += 4;
 		dat->backgroundAnimationTable[i] = (offs != 0) ? ptr + offs : 0;
-	}
-	for (int i = 0; i < 4; ++i) {
-		const uint32_t offs = READ_LE_UINT32(src); src += 4;
-		dat->dataUnk4Table[i] = (offs != 0) ? ptr + offs : 0;
 	}
 	uint32_t offsetsSize = 0;
 	for (int i = 0; i < 4; ++i) {
 		const uint32_t offs = READ_LE_UINT32(src); src += 4;
 		if (offs != 0) {
 			dat->backgroundLvlObjectDataTable[i] = (LvlObjectData *)malloc(sizeof(LvlObjectData));
-			offsetsSize += resFixPointersLevelData0x2988(ptr + offs, offsetsPtr + offsetsSize, dat->backgroundLvlObjectDataTable[i]);
+			offsetsSize += resFixPointersLevelData0x2988(ptr + offs, offsetsPtr + offsetsSize, dat->backgroundLvlObjectDataTable[i], isPsx);
 		} else {
 			dat->backgroundLvlObjectDataTable[i] = 0;
 		}
@@ -577,21 +606,22 @@ void Resource::loadLvlScreenBackgroundData(int num) {
 
 	static const uint32_t baseOffset = 0x2B88;
 
+	uint8_t buf[4 * 3];
 	_lvlFile->seekAlign(baseOffset + num * 16);
-	const uint32_t offset = _lvlFile->readUint32();
-	const uint32_t size = _lvlFile->readUint32();
-	const uint32_t readSize = _lvlFile->readUint32();
-	uint8_t *ptr = (uint8_t *)calloc(size, 1);
-	_lvlFile->seek(offset, SEEK_SET);
+	_lvlFile->read(buf, sizeof(buf));
+	const uint32_t offset = READ_LE_UINT32(&buf[0]);
+	const uint32_t size = READ_LE_UINT32(&buf[4]);
+	const uint32_t readSize = READ_LE_UINT32(&buf[8]);
+	assert(readSize <= size);
+	uint8_t *ptr = (uint8_t *)malloc(size);
+	_lvlFile->seek(_isPsx ? _lvlSssOffset + offset : offset, SEEK_SET);
 	_lvlFile->read(ptr, readSize);
 
+	uint8_t hdr[160];
 	_lvlFile->seekAlign(baseOffset + kMaxScreens * 16 + num * 160);
-	uint8_t buf[160];
-	_lvlFile->read(buf, 160);
+	_lvlFile->read(hdr, 160);
 	LvlBackgroundData *dat = &_resLvlScreenBackgroundDataTable[num];
-	const uint32_t readOffsetsSize = resFixPointersLevelData0x2B88(buf, ptr, ptr + readSize, dat);
-
-	assert(size >= readSize);
+	const uint32_t readOffsetsSize = resFixPointersLevelData0x2B88(hdr, ptr, ptr + readSize, dat, _isPsx);
 	const uint32_t allocatedOffsetsSize = size - readSize;
 	assert(allocatedOffsetsSize == readOffsetsSize);
 
@@ -604,6 +634,12 @@ void Resource::unloadLvlScreenBackgroundData(int num) {
 		free(_resLvlScreenBackgroundDataPtrTable[num]);
 		_resLvlScreenBackgroundDataPtrTable[num] = 0;
 		_resLevelData0x2B88SizeTable[num] = 0;
+
+		LvlBackgroundData *dat = &_resLvlScreenBackgroundDataTable[num];
+		for (int i = 0; i < 4; ++i) {
+			free(dat->backgroundLvlObjectDataTable[i]);
+		}
+		memset(dat, 0, sizeof(LvlBackgroundData));
 	}
 }
 
@@ -629,8 +665,16 @@ void Resource::decLvlSpriteDataRefCounter(LvlObject *ptr) {
 	}
 }
 
-const uint8_t *Resource::getLvlSpriteFramePtr(LvlObjectData *dat, int frame) const {
+const uint8_t *Resource::getLvlSpriteFramePtr(LvlObjectData *dat, int frame, uint16_t *w, uint16_t *h) const {
 	assert(frame < dat->framesCount);
+	const uint8_t *p = dat->framesData;
+	if (dat->unk0 == 1) {
+		p += frame * 6;
+	} else {
+		p += READ_LE_UINT32(dat->framesOffsetsTable + frame * sizeof(uint32_t));
+	}
+	*w = READ_LE_UINT16(p + 2);
+	*h = READ_LE_UINT16(p + 4);
 	return dat->framesData + READ_LE_UINT32(dat->framesOffsetsTable + frame * sizeof(uint32_t));
 }
 
@@ -639,9 +683,21 @@ const uint8_t *Resource::getLvlSpriteCoordPtr(LvlObjectData *dat, int num) const
 	return dat->coordsData + READ_LE_UINT32(dat->coordsOffsetsTable + num * sizeof(uint32_t));
 }
 
+int Resource::findScreenGridIndex(int screenNum) const {
+	for (int i = 0; i < 4; ++i) {
+		if (_screensGrid[_currentScreenResourceNum][i] == screenNum) {
+			return i;
+		}
+	}
+	if (_currentScreenResourceNum == screenNum) {
+		return 4;
+	}
+	return -1;
+}
+
 void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 
-	assert(fp == _sssFile || fp == _datFile);
+	assert(fp == _sssFile || fp == _datFile || fp == _lvlFile);
 
 	if (_sssHdr.bufferSize != 0) {
 		const int count = MIN(_sssHdr.pcmCount, _sssHdr.preloadPcmCount);
@@ -795,7 +851,7 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 			bytesRead += kSizeOfPreloadInfoData_V10 * count;
 			for (int j = 0; j < count; ++j) {
 				const int len = READ_LE_UINT32(p + j * kSizeOfPreloadInfoData_V10 + 0x1C) * 4;
-				bytesRead += skipBytesAlign(_sssFile, len);
+				bytesRead += skipBytesAlign(fp, len);
 			}
 			free(p);
 		}
@@ -811,7 +867,7 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 				static const int8_t lengths[8] = {    2,    1,    1,    2,    2,    1,    1,    1 };
 				for (int k = 0; k < 8; ++k) {
 					const int len = READ_LE_UINT32(p + j * kSizeOfPreloadInfoData_V6 + offsets[k]) * lengths[k];
-					bytesRead += skipBytesAlign(_sssFile, len);
+					bytesRead += skipBytesAlign(fp, len);
 				}
 			}
 			free(p);
@@ -832,7 +888,7 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 			assert((_sssPcmTable[i].totalSize % _sssPcmTable[i].strideSize) == 0);
 			assert(_sssPcmTable[i].totalSize == _sssPcmTable[i].strideSize * _sssPcmTable[i].strideCount);
 			if (sssPcmOffset != 0) {
-				assert(_sssPcmTable[i].offset == 0x2800); // .dat
+				assert(fp != _datFile || _sssPcmTable[i].offset == 0x2800); // .dat
 				_sssPcmTable[i].offset += sssPcmOffset;
 				sssPcmOffset += _sssPcmTable[i].totalSize;
 			}
@@ -961,28 +1017,23 @@ uint32_t Resource::getSssPcmSize(const SssPcm *pcm) const {
 	return (pcm->strideSize - 256 * sizeof(int16_t)) * pcm->strideCount * sizeof(int16_t);
 }
 
-void Resource::loadSssPcm(File *fp, int num) {
-	if (_sssPcmTable[num].ptr) {
-		return;
-	}
-	SssPcm *pcm = &_sssPcmTable[num];
+void Resource::loadSssPcm(File *fp, SssPcm *pcm) {
+	assert(!pcm->ptr);
 	const uint32_t decompressedSize = getSssPcmSize(pcm);
 	if (decompressedSize != 0) {
-		debug(kDebug_SOUND, "Loading PCM %d decompressedSize %d", num, decompressedSize);
+		debug(kDebug_SOUND, "Loading PCM %p decompressedSize %d", pcm, decompressedSize);
 		int16_t *p = (int16_t *)malloc(decompressedSize);
 		if (!p) {
-			warning("Failed to allocate %d bytes for PCM %d", decompressedSize, num);
+			warning("Failed to allocate %d bytes for PCM", decompressedSize);
 			return;
 		}
 		pcm->ptr = p;
 		fp->seek(pcm->offset, SEEK_SET);
 		for (int i = 0; i < pcm->strideCount; ++i) {
-			int16_t lut[256];
-			for (int j = 0; j < 256; ++j) {
-				lut[j] = fp->readUint16();
-			}
-			for (uint32_t j = 256 * sizeof(int16_t); j < pcm->strideSize; ++j) {
-				*p++ = lut[fp->readByte()];
+			uint8_t samples[256 * sizeof(int16_t)];
+			fp->read(samples, sizeof(samples));
+			for (unsigned int j = 256 * sizeof(int16_t); j < pcm->strideSize; ++j) {
+				*p++ = READ_LE_UINT16(samples + fp->readByte() * sizeof(int16_t));
 			}
 		}
 		assert((p - pcm->ptr) * sizeof(int16_t) == decompressedSize);
@@ -1033,9 +1084,9 @@ void Resource::loadMstData(File *fp) {
 	_mstHdr.movingBoundsIndexDataCount = fp->readUint32();
 	_mstHdr.levelCheckpointCodeDataCount = fp->readUint32();
 	_mstHdr.screenAreaDataCount = fp->readUint32();
-	_mstHdr.unk0x1C = fp->readUint32();
+	_mstHdr.screenAreaIndexDataCount = fp->readUint32();
 	_mstHdr.behaviorIndexDataCount = fp->readUint32();
-	_mstHdr.unk0x24 = fp->readUint32();
+	_mstHdr.monsterActionIndexDataCount = fp->readUint32();
 	_mstHdr.walkPathDataCount = fp->readUint32();
 	_mstHdr.infoMonster2Count = fp->readUint32();
 	_mstHdr.behaviorDataCount = fp->readUint32();
@@ -1138,15 +1189,15 @@ void Resource::loadMstData(File *fp) {
 		bytesRead += 36;
 	}
 
-	_mstUnk39.allocate(_mstHdr.unk0x1C);
-	for (int i = 0; i < _mstHdr.unk0x1C; ++i) {
-		_mstUnk39[i] = fp->readUint32();
+	_mstScreenAreaByValueIndexData.allocate(_mstHdr.screenAreaIndexDataCount);
+	for (int i = 0; i < _mstHdr.screenAreaIndexDataCount; ++i) {
+		_mstScreenAreaByValueIndexData[i] = fp->readUint32();
 		bytesRead += 4;
 	}
 
-	_mstUnk40.allocate(_mstHdr.screensCount);
+	_mstScreenAreaByPosIndexData.allocate(_mstHdr.screensCount);
 	for (int i = 0; i < _mstHdr.screensCount; ++i) {
-		_mstUnk40[i] = fp->readUint32();
+		_mstScreenAreaByPosIndexData[i] = fp->readUint32();
 		bytesRead += 4;
 	}
 
@@ -1174,22 +1225,22 @@ void Resource::loadMstData(File *fp) {
 		bytesRead += readBytesAlign(fp, _mstBehaviorIndexData[i].data, _mstBehaviorIndexData[i].dataCount);
 	}
 
-	_mstUnk43.allocate(_mstHdr.unk0x24);
-	for (int i = 0; i < _mstHdr.unk0x24; ++i) {
+	_mstMonsterActionIndexData.allocate(_mstHdr.monsterActionIndexDataCount);
+	for (int i = 0; i < _mstHdr.monsterActionIndexDataCount; ++i) {
 		fp->readUint32();
-		_mstUnk43[i].count1 = fp->readUint32();
-		_mstUnk43[i].indexUnk48 = (uint32_t *)malloc(_mstUnk43[i].count1 * sizeof(uint32_t));
+		_mstMonsterActionIndexData[i].count1 = fp->readUint32();
+		_mstMonsterActionIndexData[i].indexUnk48 = (uint32_t *)malloc(_mstMonsterActionIndexData[i].count1 * sizeof(uint32_t));
 		fp->readUint32();
-		_mstUnk43[i].dataCount = fp->readUint32();
-		_mstUnk43[i].data = (uint8_t *)malloc(_mstUnk43[i].dataCount);
+		_mstMonsterActionIndexData[i].dataCount = fp->readUint32();
+		_mstMonsterActionIndexData[i].data = (uint8_t *)malloc(_mstMonsterActionIndexData[i].dataCount);
 		bytesRead += 16;
 	}
-	for (int i = 0; i < _mstHdr.unk0x24; ++i) {
-		for (uint32_t j = 0; j < _mstUnk43[i].count1; ++j) {
-			_mstUnk43[i].indexUnk48[j] = fp->readUint32();
+	for (int i = 0; i < _mstHdr.monsterActionIndexDataCount; ++i) {
+		for (uint32_t j = 0; j < _mstMonsterActionIndexData[i].count1; ++j) {
+			_mstMonsterActionIndexData[i].indexUnk48[j] = fp->readUint32();
 			bytesRead += 4;
 		}
-		bytesRead += readBytesAlign(fp, _mstUnk43[i].data, _mstUnk43[i].dataCount);
+		bytesRead += readBytesAlign(fp, _mstMonsterActionIndexData[i].data, _mstMonsterActionIndexData[i].dataCount);
 	}
 
 	_mstWalkPathData.allocate(_mstHdr.walkPathDataCount);
@@ -1589,11 +1640,11 @@ void Resource::unloadMstData() {
 		free(_mstBehaviorIndexData[i].data);
 		_mstBehaviorIndexData[i].data = 0;
 	}
-	for (int i = 0; i < _mstHdr.unk0x24; ++i) {
-		free(_mstUnk43[i].indexUnk48);
-		_mstUnk43[i].indexUnk48 = 0;
-		free(_mstUnk43[i].data);
-		_mstUnk43[i].data = 0;
+	for (int i = 0; i < _mstHdr.monsterActionIndexDataCount; ++i) {
+		free(_mstMonsterActionIndexData[i].indexUnk48);
+		_mstMonsterActionIndexData[i].indexUnk48 = 0;
+		free(_mstMonsterActionIndexData[i].data);
+		_mstMonsterActionIndexData[i].data = 0;
 	}
 	for (int i = 0; i < _mstHdr.walkPathDataCount; ++i) {
 		free(_mstWalkPathData[i].data);
@@ -1644,7 +1695,7 @@ void Resource::unloadMstData() {
 }
 
 const MstScreenArea *Resource::findMstCodeForPos(int num, int xPos, int yPos) const {
-	uint32_t i = _mstUnk40[num];
+	uint32_t i = _mstScreenAreaByPosIndexData[num];
 	while (i != kNone) {
 		const MstScreenArea *msac = &_mstScreenAreaData[i];
 		if (msac->x1 <= xPos && msac->x2 >= xPos && msac->unk0x1D != 0 && msac->y1 <= yPos && msac->y2 >= yPos) {
@@ -1656,7 +1707,7 @@ const MstScreenArea *Resource::findMstCodeForPos(int num, int xPos, int yPos) co
 }
 
 void Resource::flagMstCodeForPos(int num, uint8_t value) {
-	uint32_t i = _mstUnk39[num];
+	uint32_t i = _mstScreenAreaByValueIndexData[num];
 	while (i != kNone) {
 		MstScreenArea *msac = &_mstScreenAreaData[i];
 		msac->unk0x1D = value;

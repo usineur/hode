@@ -110,7 +110,6 @@ struct PafPlayer {
 	void decodeVideoFrameOp4(const uint8_t *src);
 
 	void decodeAudioFrame(const uint8_t *src, uint32_t offset, uint32_t size);
-	void decodeAudioFrame2205(const uint8_t *src, int16_t *dst);
 
 	void mix(int16_t *buf, int samples);
 	void mainLoop();

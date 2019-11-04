@@ -41,23 +41,14 @@ static void mixS16(int16_t *dst, const int16_t *src, int len, int panL, int panR
 
 	static const int kPanBits = 14; // 0..16384
 
-	if (stereo) {
-		for (int j = 0; j < len; j += 2, dst += 2, src += 2) {
-			if (panning != 1) {
-				dst[0] = CLIP(dst[0] + ((panL * src[0]) >> kPanBits), -32768, 32767);
-			}
-			if (panning != 2) {
-				dst[1] = CLIP(dst[1] + ((panR * src[1]) >> kPanBits), -32768, 32767);
-			}
+	for (int j = 0; j < len; j += 2, dst += 2) {
+		const int16_t sampleL = *src++;
+		const int16_t sampleR = stereo ? *src++ : sampleL;
+		if (panning != 1) {
+			dst[0] = CLIP(dst[0] + ((panL * sampleL) >> kPanBits), -32768, 32767);
 		}
-	} else {
-		for (int j = 0; j < len; j += 2, dst += 2, ++src) {
-			if (panning != 1) {
-				dst[0] = CLIP(dst[0] + ((panL * src[0]) >> kPanBits), -32768, 32767);
-			}
-			if (panning != 2) {
-				dst[1] = CLIP(dst[1] + ((panR * src[0]) >> kPanBits), -32768, 32767);
-			}
+		if (panning != 2) {
+			dst[1] = CLIP(dst[1] + ((panR * sampleR) >> kPanBits), -32768, 32767);
 		}
 	}
 }

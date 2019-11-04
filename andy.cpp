@@ -1569,9 +1569,8 @@ void Game::updateAndyObject(LvlObject *ptr) {
 		ash = (LvlAnimSeqHeader *)(dat->animsInfoData + ah->seqOffset) + currentAnimFrame;
 		asfh = &asfh[count];
 
-		const uint8_t *bitmap = _res->getLvlSpriteFramePtr(dat, ash->firstFrame);
-		int w = READ_LE_UINT16(bitmap + 2);
-		int h = READ_LE_UINT16(bitmap + 4);
+		uint16_t w, h;
+		_res->getLvlSpriteFramePtr(dat, ash->firstFrame, &w, &h);
 
 		ptr->flags1 = ((ptr->flags1 & 0x30) ^ ((asfh->unk5 & 3) << 4)) | (ptr->flags1 & ~0x30);
 		int type = (ptr->flags1 >> 4) & 3;
@@ -1598,7 +1597,8 @@ void Game::updateAndyObject(LvlObject *ptr) {
 	} else {
 sameAnim:
 
-		const uint8_t *frame1 = _res->getLvlSpriteFramePtr(dat, ash->firstFrame);
+		uint16_t frame1_w, frame1_h;
+		_res->getLvlSpriteFramePtr(dat, ash->firstFrame, &frame1_w, &frame1_h);
 
 		++currentAnimFrame;
 		if (currentAnimFrame >= ah->seqCount) {
@@ -1607,10 +1607,11 @@ sameAnim:
 
 		ash = (LvlAnimSeqHeader *)(dat->animsInfoData + ah->seqOffset) + currentAnimFrame;
 
-		const uint8_t *frame2 = _res->getLvlSpriteFramePtr(dat, ash->firstFrame);
+		uint16_t frame2_w, frame2_h;
+		_res->getLvlSpriteFramePtr(dat, ash->firstFrame, &frame2_w, &frame2_h);
 
-		int dw = READ_LE_UINT16(frame2 + 2) - READ_LE_UINT16(frame1 + 2);
-		int dh = READ_LE_UINT16(frame2 + 4) - READ_LE_UINT16(frame1 + 4);
+		int dw = frame2_w - frame1_w;
+		int dh = frame2_h - frame1_h;
 
 		const int type = (ptr->flags1 >> 4) & 3;
 		switch (type) {
@@ -1647,10 +1648,7 @@ sameAnim:
 
 	ptr->currentSprite = ash->firstFrame;
 
-	ptr->bitmapBits = _res->getLvlSpriteFramePtr(dat, ash->firstFrame);
-
-	ptr->width = READ_LE_UINT16(ptr->bitmapBits + 2);
-	ptr->height = READ_LE_UINT16(ptr->bitmapBits + 4);
+	ptr->bitmapBits = _res->getLvlSpriteFramePtr(dat, ash->firstFrame, &ptr->width, &ptr->height);
 
 	LvlSprHotspotData *hs = ((LvlSprHotspotData *)dat->hotspotsData) + ash->firstFrame;
 

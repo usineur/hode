@@ -412,7 +412,7 @@ void Level_isld::tick() {
 
 void Level_isld::terminate() {
 	if (!_paf->_skipCutscenes) {
-		// original calls preload()...
+		// bugfix: original calls preload()
 		_paf->unload(kPafAnimation_IslandAndyFalling);
 	}
 }

@@ -146,8 +146,8 @@ void Level_lava::postScreenUpdate_lava_screen2_addLvlObjects(const uint8_t *p) {
 	do {
 		LvlObject *ptr = 0;
 		if (_g->_declaredLvlObjectsListCount < Game::kMaxLvlObjects) {
-			ptr = _g->_declaredLvlObjectsListHead;
-			_g->_declaredLvlObjectsListHead = _g->_declaredLvlObjectsListHead->nextPtr;
+			ptr = _g->_declaredLvlObjectsNextPtr;
+			_g->_declaredLvlObjectsNextPtr = _g->_declaredLvlObjectsNextPtr->nextPtr;
 			++_g->_declaredLvlObjectsListCount;
 			ptr->spriteNum = 22;
 			ptr->type = 8;

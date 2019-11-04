@@ -15,6 +15,7 @@ enum {
 
 enum {
 	kNone = 0xFFFFFFFF, // (uint32_t)-1
+	kNoScreen = 0xFF, // (uint8_t)-1
 	kLvlAnimHdrOffset = 0x2C,
 	kMaxScreens = 40,
 	kMaxSpriteTypes = 32,
@@ -119,8 +120,6 @@ struct LvlObjectData {
 	uint8_t refCount; // 0xA
 	uint8_t frame; // 0xB
 	uint16_t anim; // 0xC
-	uint8_t unkE;
-	uint8_t unkF;
 	uint8_t *animsInfoData; // 0x10, LevelSprAnimInfo
 	uint8_t *movesData; // 0x14, LvlSprMoveData
 	uint8_t *framesData; // 0x18
@@ -154,13 +153,11 @@ struct LvlObject {
 	uint8_t actionKeyMask;
 	uint8_t directionKeyMask;
 	uint16_t currentSprite;
-	uint16_t currentSound;
-	uint8_t unk26;
-	uint8_t unk27;
-	const uint8_t *bitmapBits;
-	int (Game::*callbackFuncPtr)(LvlObject *ptr);
-	void *dataPtr;
-	SssObject *sssObject; // 0x34
+	uint16_t currentSound; // 24
+	const uint8_t *bitmapBits; // 28
+	int (Game::*callbackFuncPtr)(LvlObject *ptr); // 2C
+	void *dataPtr; // 30
+	SssObject *sssObject; // 34
 	LvlObjectData *levelData0x2988;
 	Point16_t posTable[8];
 	LvlObject *nextPtr;

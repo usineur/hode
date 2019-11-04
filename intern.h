@@ -81,13 +81,7 @@ inline T ABS(T t) {
 
 template<typename T>
 inline T CLIP(T t, T tmin, T tmax) {
-	if (t < tmin) {
-		return tmin;
-	} else if (t > tmax) {
-		return tmax;
-	} else {
-		return t;
-	}
+	return (t < tmin ? tmin : (t > tmax ? tmax : t));
 }
 
 template<typename T>

@@ -90,7 +90,9 @@ static int handleConfigIni(void *userdata, const char *section, const char *name
 	// fprintf(stdout, "config.ini: section '%s' name '%s' value '%s'\n", section, name, value);
 	if (strcmp(section, "engine") == 0) {
 		if (strcmp(name, "disable_paf") == 0) {
-			g->_paf->_skipCutscenes = configBool(value);
+			if (!g->_paf->_skipCutscenes) { // .paf file not found
+				g->_paf->_skipCutscenes = configBool(value);
+			}
 		} else if (strcmp(name, "disable_mst") == 0) {
 			g->_mstDisabled = configBool(value);
 		} else if (strcmp(name, "disable_sss") == 0) {
