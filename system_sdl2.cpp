@@ -12,6 +12,10 @@
 
 static const char *kIconBmp = "icon.bmp";
 
+#ifdef __vita__
+static bool axis[4]= { false, false, false, false };
+#endif
+
 static int _scalerMultiplier = 3;
 static const Scaler *_scaler = &scaler_xbr;
 static const float _gamma = 1.f;
@@ -496,12 +500,24 @@ void System_SDL2::processEvents() {
 				case SDL_CONTROLLER_AXIS_RIGHTX:
 					if (ev.caxis.value < -kJoystickCommitValue) {
 						pad.mask |= SYS_INP_LEFT;
+#ifdef __vita__
+						axis[0] = true;
+					} else if (axis[0]) {
+						axis[0] = false;
+#else
 					} else {
+#endif
 						pad.mask &= ~SYS_INP_LEFT;
 					}
 					if (ev.caxis.value > kJoystickCommitValue) {
 						pad.mask |= SYS_INP_RIGHT;
+#ifdef __vita__
+						axis[1] = true;
+					} else if (axis[1]) {
+						axis[1] = false;
+#else
 					} else {
+#endif
 						pad.mask &= ~SYS_INP_RIGHT;
 					}
 					break;
@@ -509,12 +525,24 @@ void System_SDL2::processEvents() {
 				case SDL_CONTROLLER_AXIS_RIGHTY:
 					if (ev.caxis.value < -kJoystickCommitValue) {
 						pad.mask |= SYS_INP_UP;
+#ifdef __vita__
+						axis[2] = true;
+					} else if (axis[2]) {
+						axis[2] = false;
+#else
 					} else {
+#endif
 						pad.mask &= ~SYS_INP_UP;
 					}
 					if (ev.caxis.value > kJoystickCommitValue) {
 						pad.mask |= SYS_INP_DOWN;
+#ifdef __vita__
+						axis[3] = true;
+					} else if (axis[3]) {
+						axis[3] = false;
+#else
 					} else {
+#endif
 						pad.mask &= ~SYS_INP_DOWN;
 					}
 					break;
