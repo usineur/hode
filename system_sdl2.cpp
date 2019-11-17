@@ -551,7 +551,7 @@ void System_SDL2::processEvents() {
 					break;
 				case SDL_CONTROLLER_BUTTON_BACK:
 				case SDL_CONTROLLER_BUTTON_START:
-					inp.quit = pressed;
+					inp.escape = pressed;
 					break;
 				case SDL_CONTROLLER_BUTTON_DPAD_UP:
 					if (pressed) {

@@ -18,9 +18,17 @@
 #include "system.h"
 #include "video.h"
 
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+
 static const char *_title = "Heart of Darkness";
 
+#ifdef __vita__
+static const char *_configIni = "ux0:data/hode/hode.ini";
+#else
 static const char *_configIni = "hode.ini";
+#endif
 
 static const char *_usage =
 	"hode - Heart of Darkness Interpreter\n"
@@ -126,8 +134,17 @@ static int handleConfigIni(void *userdata, const char *section, const char *name
 }
 
 int main(int argc, char *argv[]) {
+#ifdef __SWITCH__
+	socketInitializeDefault();
+	nxlinkStdio();
+#endif
+#ifdef __vita__
+	const char *dataPath = "ux0:data/hode";
+	const char *savePath = "ux0:data/hode";
+#else
 	char *dataPath = 0;
 	char *savePath = 0;
+#endif
 	int level = 0;
 	int checkpoint = 0;
 	bool resume = true;
@@ -223,7 +240,12 @@ int main(int argc, char *argv[]) {
 	_system->stopAudio();
 	g->_mix.fini();
 	delete g;
+#ifndef __vita__
 	free(dataPath);
 	free(savePath);
+#endif
+#ifdef __SWITCH__
+	socketExit();
+#endif
 	return 0;
 }

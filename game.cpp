@@ -14,7 +14,11 @@
 #include "video.h"
 
 // menu settings and player progress
+#ifdef __vita__
+static const char *_setupCfg = "ux0:data/hode/setup.cfg";
+#else
 static const char *_setupCfg = "setup.cfg";
+#endif
 
 // starting level cutscene number
 static const uint8_t _cutscenes[] = { 0, 2, 4, 5, 6, 8, 10, 14, 19 };
@@ -2737,7 +2741,7 @@ void Game::levelMainLoop() {
 	}
 	_rnd.update();
 	_system->processEvents();
-	if (_system->inp.keyPressed(SYS_INP_ESC)) { // display exit confirmation screen
+	if (_system->inp.keyPressed(SYS_INP_ESC) || _system->inp.escape) { // display exit confirmation screen
 		if (displayHintScreen(-1, 0)) {
 			_system->inp.quit = true;
 			return;

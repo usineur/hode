@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__SWITCH__) || defined(__vita__)
 #define le16toh(x) x
 #define le32toh(x) x
 #define htole16(x) x
