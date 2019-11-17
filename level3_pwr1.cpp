@@ -107,7 +107,7 @@ void Level_pwr1::postScreenUpdate_pwr1_screen6() {
 			LvlObject *o = _g->findLvlObjectBoundingBox(&b);
 			if (o) {
 				ShootLvlObjectData *oosd = (ShootLvlObjectData *)_g->getLvlObjectDataPtr(o, kObjectDataTypeShoot);
-				if (oosd->unk0 == 6) {
+				if (oosd->type == 6) {
 					_res->_screensState[6].s0 = 4;
 					dat->currentMaskId = 2;
 				}
@@ -423,11 +423,7 @@ void Level_pwr1::preScreenUpdate_pwr1_screen26() {
 	if (_checkpoint >= 7) {
 		_res->_screensState[23].s0 = 1;
 	}
-	if (_res->_currentScreenResourceNum == 23 || _res->_currentScreenResourceNum == 26) {
-		const uint8_t num = _res->_screensState[23].s0 != 0 ? 1 : 0;
-		_res->_resLvlScreenBackgroundDataTable[23].currentBackgroundId = num;
-		_res->_resLvlScreenBackgroundDataTable[23].currentMaskId = num;
-	}
+	preScreenUpdate_pwr1_screen23();
 }
 
 void Level_pwr1::preScreenUpdate_pwr1_screen27() {
@@ -466,7 +462,7 @@ void Level_pwr1::preScreenUpdate_pwr1_screen31() {
 
 void Level_pwr1::preScreenUpdate_pwr1_screen35() {
 	if (_res->_currentScreenResourceNum == 35) {
-		_screenCounterTable[25] = 0;
+		_screenCounterTable[35] = 0;
 		if (!_paf->_skipCutscenes) {
 			_paf->preload(5);
 		}

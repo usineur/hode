@@ -24,6 +24,10 @@ struct File {
 	uint16_t readUint16();
 	uint32_t readUint32();
 	virtual void flush();
+
+	void skipByte()   { seek(1, SEEK_CUR); }
+	void skipUint16() { seek(2, SEEK_CUR); }
+	void skipUint32() { seek(4, SEEK_CUR); }
 };
 
 struct SectorFile : File {
@@ -34,11 +38,10 @@ struct SectorFile : File {
 
 	uint8_t _buf[kFioBufferSize];
 	int _bufPos;
-	int _bufLen;
 
 	SectorFile();
 
-	void refillBuffer();
+	void refillBuffer(uint8_t *ptr = 0);
 	virtual void seekAlign(int pos);
 	virtual void seek(int pos, int whence);
 	virtual int read(uint8_t *ptr, int size);
@@ -47,8 +50,6 @@ struct SectorFile : File {
 
 int fioAlignSizeTo2048(int size);
 uint32_t fioUpdateCRC(uint32_t sum, const uint8_t *buf, uint32_t size);
-void fioDumpData(const char *filename, const uint8_t *buf, int size);
-int fioReadData(const char *filename, uint8_t *buf, int size);
 
 #endif // FILEIO_H__
 

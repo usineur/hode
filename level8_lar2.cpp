@@ -181,9 +181,9 @@ void Level_lar2::postScreenUpdate_lar2_screen4() {
 			_paf->play(18);
 			_paf->unload(18);
 			_video->clearPalette();
-			_g->_currentLevelCheckpoint = _checkpoint;
 			_g->updateScreen(_andyObject->screenNum);
 		}
+		_g->_currentLevelCheckpoint = _checkpoint; // bugfix: conditioned with _pafSkipCutscenes
 	}
 	LvlObject *o = _g->findLvlObject(2, 0, 4);
 	_g->updateGatesLar(o, _lar2_gatesData + 8, 2);
@@ -205,19 +205,20 @@ void Level_lar2::postScreenUpdate_lar2_screen6() {
 					_paf->play(17);
 					_paf->unload(17);
 					_video->clearPalette();
-					_g->_currentLevelCheckpoint = _checkpoint;
 					_g->updateScreen(_andyObject->screenNum);
 				}
+				_g->_currentLevelCheckpoint = _checkpoint; // bugfix: conditioned with _pafSkipCutscenes
 			}
 		} else if (_checkpoint == 3) {
-			if (!_paf->_skipCutscenes) {
-				if (_res->_screensState[6].s0 != 0) {
+			if (_res->_screensState[6].s0 != 0) {
+				if (!_paf->_skipCutscenes) {
 					_paf->play(15);
 					_paf->unload(15);
 					_video->clearPalette();
 					_res->_screensState[6].s0 = 0;
 					_g->updateScreen(_andyObject->screenNum);
 				}
+				_res->_screensState[6].s0 = 0; // bugfix: conditioned with _pafSkipCutscenes
 			}
 
 		}
@@ -228,7 +229,7 @@ void Level_lar2::postScreenUpdate_lar2_screen7() {
 	if (_res->_currentScreenResourceNum == 7) {
 		if (!_paf->_skipCutscenes) {
 			const uint8_t state = _res->_screensState[7].s0;
-			if (state != 0 && _checkpoint == 5 && state > 1) {
+			if (_checkpoint == 5 && state > 1) {
 				_paf->play(16);
 				_paf->unload(16);
 				_video->clearPalette();
@@ -417,11 +418,13 @@ void Level_lar2::preScreenUpdate_lar2_screen6() {
 		if (_checkpoint == 2) {
 			_checkpoint = 3;
 		}
-		if (!_paf->_skipCutscenes) {
-			if (_checkpoint == 3) {
+		if (_checkpoint == 3) {
+			if (!_paf->_skipCutscenes) {
 				_paf->preload(15);
-				_lar2_gatesData[0xC] &= 0xF;
-			} else if (_checkpoint == 6) {
+			}
+			_lar2_gatesData[0xC] &= 0xF; // bugfix: conditioned with _pafSkipCutscenes
+		} else if (_checkpoint == 6) {
+			if (!_paf->_skipCutscenes) {
 				_paf->preload(17);
 			}
 		}
@@ -439,13 +442,13 @@ void Level_lar2::preScreenUpdate_lar2_screen7() {
 			if (!_paf->_skipCutscenes) {
 				_paf->preload(16);
 			}
-			if (_res->_screensState[7].s0 != 0) {
-				_res->_resLvlScreenBackgroundDataTable[7].currentBackgroundId = 1;
-				_res->_resLvlScreenBackgroundDataTable[7].currentMaskId = 1;
-			} else {
-				_res->_resLvlScreenBackgroundDataTable[7].currentBackgroundId = 0;
-				_res->_resLvlScreenBackgroundDataTable[7].currentMaskId = 0;
-			}
+		}
+		if (_res->_screensState[7].s0 != 0) {
+			_res->_resLvlScreenBackgroundDataTable[7].currentBackgroundId = 1;
+			_res->_resLvlScreenBackgroundDataTable[7].currentMaskId = 1;
+		} else {
+			_res->_resLvlScreenBackgroundDataTable[7].currentBackgroundId = 0;
+			_res->_resLvlScreenBackgroundDataTable[7].currentMaskId = 0;
 		}
 	}
 }

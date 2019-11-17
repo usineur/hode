@@ -7,7 +7,6 @@
 #define RESOURCE_H__
 
 #include "defs.h"
-#include "fs.h"
 #include "intern.h"
 
 struct DatHdr {
@@ -66,8 +65,7 @@ struct LvlBackgroundData {
 	uint8_t *backgroundMaskTable[4];
 	uint8_t *backgroundSoundTable[4];
 	uint8_t *backgroundAnimationTable[8];
-	LvlObjectData *backgroundLvlObjectDataTable[4];
-	uint8_t *dataUnk6Table[4]; // unused
+	LvlObjectData *backgroundLvlObjectDataTable[8];
 };
 
 struct MstHdr {
@@ -436,7 +434,7 @@ struct SssSample {
 	uint16_t pcm; // indexes _sssPcmTable
 	uint16_t framesCount;
 	uint8_t initVolume; // 0x4
-	uint8_t unk5;
+	uint8_t unk5; // unused
 	int8_t initPriority; // 0x6
 	int8_t initPanning; // 0x7
 	uint32_t codeOffset1; // 0x8 indexes _sssCodeData
@@ -445,9 +443,24 @@ struct SssSample {
 	uint32_t codeOffset4; // 0x14 indexes _sssCodeData
 }; // sizeof == 24
 
+struct SssPreloadList {
+	int count;
+	uint8_t *ptr; // uint16_t for v12
+};
+
+struct SssPreloadInfoData {
+	uint16_t pcmBlockOffset;
+	uint16_t pcmBlockSize;
+	uint8_t screenNum;
+	uint8_t preload3Index;
+	uint8_t preload1Index;
+	uint8_t preload2Index;
+	uint32_t unk1C;
+}; // sizeof == 32 (v10,v12) 68 (v6)
+
 struct SssPreloadInfo {
 	uint32_t count;
-	uint8_t *data; // sizeof == 32 (v10,v11) 68 (v6)
+	SssPreloadInfoData *data;
 };
 
 struct SssFilter {
@@ -478,11 +491,6 @@ struct SssUnk6 {
 	uint32_t mask; // 10
 };
 
-struct SssPreloadData {
-	uint8_t count;
-	uint8_t *ptr;
-};
-
 template <typename T>
 struct ResStruct {
 	T *ptr;
@@ -497,6 +505,7 @@ struct ResStruct {
 
 	void deallocate() {
 		free(ptr);
+		ptr = 0;
 		count = 0;
 	}
 	void allocate(unsigned int size) {
@@ -515,9 +524,11 @@ struct ResStruct {
 	}
 };
 
+struct FileSystem;
+
 struct Resource {
 
-	FileSystem _fs;
+	FileSystem *_fs;
 
 	DatHdr _datHdr;
 	File *_datFile;
@@ -560,7 +571,8 @@ struct Resource {
 	ResStruct<SssDefaults> _sssDefaultsData;
 	ResStruct<SssBank> _sssBanksData;
 	ResStruct<SssSample> _sssSamplesData;
-	ResStruct<SssPreloadInfo> _sssPreloadInfosData;
+	ResStruct<SssPreloadList> _sssPreload1Table; // pcm
+	ResStruct<SssPreloadInfo> _sssPreloadInfosData; // indexed by screen number
 	ResStruct<SssFilter> _sssFilters;
 	ResStruct<SssPcm> _sssPcmTable;
 	ResStruct<SssUnk6> _sssDataUnk6;
@@ -604,14 +616,14 @@ struct Resource {
 	uint8_t *_mstCodeData;
 	ResStruct<MstOp226Data> _mstOp226Data;
 
-	Resource(const char *dataPath);
+	Resource(FileSystem *fs);
 	~Resource();
 
 	bool sectorAlignedGameData();
 
 	void loadSetupDat();
-	void loadDatHintImage(int num, uint8_t *dst, uint8_t *pal);
-	void loadDatLoadingImage(uint8_t *dst, uint8_t *pal);
+	bool loadDatHintImage(int num, uint8_t *dst, uint8_t *pal);
+	bool loadDatLoadingImage(uint8_t *dst, uint8_t *pal);
 	void loadDatMenuBuffers();
 
 	void loadLevelData(int levelNum);
@@ -640,6 +652,7 @@ struct Resource {
 	uint32_t getSssPcmSize(const SssPcm *pcm) const;
 	void clearSssGroup3();
 	void resetSssFilters();
+	void preloadSssPcmList(const SssPreloadInfoData *preloadInfoData);
 
 	void loadMstData(File *fp);
 	void unloadMstData();

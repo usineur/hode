@@ -7,13 +7,15 @@
 struct FileSystem {
 
 	const char *_dataPath;
+	const char *_savePath;
 	int _filesCount;
 	char **_filesList;
 
-	FileSystem(const char *dataPath);
+	FileSystem(const char *dataPath, const char *savePath);
 	~FileSystem();
 
-	FILE *openFile(const char *filename);
+	FILE *openAssetFile(const char *filename);
+	FILE *openSaveFile(const char *filename, bool write);
 	void closeFile(FILE *);
 
 	void addFilePath(const char *path);

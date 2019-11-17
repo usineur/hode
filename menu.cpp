@@ -49,24 +49,24 @@ void Menu::drawSprite(const DatSpritesGroup *spriteGroup, uint32_t num) {
 	for (uint32_t i = 0; i < spriteGroup->count; ++i) {
 		const uint16_t size = READ_LE_UINT16(ptr + 2);
 		if (num == i) {
-			_video->decodeSPR(ptr + 2, _video->_frontLayer, ptr[0], ptr[1], 0);
+			_video->decodeSPR(ptr + 8, _video->_frontLayer, ptr[0], ptr[1], 0, READ_LE_UINT16(ptr + 4), READ_LE_UINT16(ptr + 6));
 			break;
 		}
 		ptr += size + 2;
 	}
 }
 
-void Menu::drawTitleScreen() {
-	if (_titleBitmap) {
-		const uint8_t *data = (const uint8_t *)&_titleBitmap[1];
-		const uint32_t uncompressedSize = decodeLZW(data, _video->_frontLayer);
-		assert(uncompressedSize == Video::W * Video::H);
-		const uint8_t *palette = data + _titleBitmap->size;
-		_system->setPalette(palette, 256, 6);
+void Menu::drawBitmap(const DatBitmap *bitmap) {
+	const uint8_t *data = (const uint8_t *)&bitmap[1];
+	const uint32_t uncompressedSize = decodeLZW(data, _video->_frontLayer);
+	assert(uncompressedSize == Video::W * Video::H);
+	const uint8_t *palette = data + bitmap->size;
+	_system->setPalette(palette, 256, 6);
+	if (bitmap == _titleBitmap) {
 		drawSprite(_titleSprites, _currentOption);
-		_system->copyRect(0, 0, Video::W, Video::H, _video->_frontLayer, Video::W);
-		_system->updateScreen(false);
 	}
+	_system->copyRect(0, 0, Video::W, Video::H, _video->_frontLayer, Video::W);
+	_system->updateScreen(false);
 }
 
 void Menu::mainLoop() {
@@ -82,7 +82,7 @@ void Menu::mainLoop() {
 				++_currentOption;
 			}
 		}
-		drawTitleScreen();
+		drawBitmap(_titleBitmap);
 		_system->processEvents();
 		_system->sleep(15);
 	}

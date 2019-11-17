@@ -262,7 +262,7 @@ void Level_lava::postScreenUpdate_lava_screen2() {
 			_g->setShakeScreen(3, 2);
 		}
 	}
-	if (_res->_currentScreenResourceNum == 2 && _g->clipLvlObjectsBoundingBox(_andyObject, o, 0x44)) {
+	if (_res->_currentScreenResourceNum == 2 && (o->flags0 & 0x1F) != 0 && _g->clipLvlObjectsBoundingBox(_andyObject, o, 0x44)) {
 		const int x = o->xPos + o->width / 2;
 		if (_andyObject->xPos > x) {
 			_andyObject->xPos += 10;
@@ -521,8 +521,8 @@ void Level_lava::preScreenUpdate_lava_screen10() {
 	if (_res->_screensState[10].s0 != 0 && _res->_screensState[10].s0 != 1) {
 		_res->_screensState[10].s0 = 1;
 	}
+	_res->_resLvlScreenBackgroundDataTable[10].currentMaskId = num;
 	if (_res->_currentScreenResourceNum == 10) {
-		_res->_resLvlScreenBackgroundDataTable[10].currentMaskId = num;
 		if (!_paf->_skipCutscenes) {
 			_paf->preload(7);
 		}

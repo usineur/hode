@@ -68,7 +68,7 @@ struct Video {
 	void fillBackBuffer();
 	void clearPalette();
 	static void decodeRLE(const uint8_t *src, uint8_t *dst, int size);
-	void decodeSPR(const uint8_t *src, uint8_t *dst, int x, int y, uint8_t flags);
+	void decodeSPR(const uint8_t *src, uint8_t *dst, int x, int y, uint8_t flags, uint16_t spr_w, uint16_t spr_h);
 	int computeLineOutCode(int x, int y);
 	bool clipLineCoords(int &x1, int &y1, int &x2, int &y2);
 	void drawLine(int x1, int y1, int x2, int y2);

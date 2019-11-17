@@ -9,6 +9,7 @@
 #include "intern.h"
 #include "defs.h"
 #include "fileio.h"
+#include "fs.h"
 #include "mixer.h"
 #include "random.h"
 #include "resource.h"
@@ -84,6 +85,7 @@ struct Game {
 	static const int16_t *_lar_screenMaskOffsets[];
 	static uint8_t _lar1_maskData[];
 
+	FileSystem _fs;
 	Level *_level;
 	Mixer _mix;
 	PafPlayer *_paf;
@@ -94,6 +96,7 @@ struct Game {
 	uint32_t _cheats;
 	int _frameMs;
 	int _difficulty;
+	bool _loadingScreenEnabled;
 
 	uint8_t _setupCfgBuffer[kSetupCfgSize];
 
@@ -125,7 +128,7 @@ struct Game {
 	LvlObject *_lvlObjectsList3;
 	uint8_t _screenPosTable[5][24 * 32];
 	uint8_t _screenTempMaskBuffer[24 * 32];
-	uint8_t _screenMaskBuffer[96 * 24 * 32];
+	uint8_t _screenMaskBuffer[(16 * 6) * 24 * 32]; // level screens mask : 16 horizontal screens x 6 vertical screens
 	int _mstAndyCurrentScreenNum;
 	uint8_t _shakeScreenDuration;
 	const uint8_t *_shakeScreenTable;
@@ -221,7 +224,7 @@ struct Game {
 	int _wormHoleSpritesCount;
 	WormHoleSprite _wormHoleSpritesTable[6];
 
-	Game(System *system, const char *dataPath, uint32_t cheats);
+	Game(System *system, const char *dataPath, const char *savePath, uint32_t cheats);
 	~Game();
 
 	// 32*24 pitch=512
@@ -272,7 +275,6 @@ struct Game {
 	void setupPlasmaCannonPoints(LvlObject *ptr);
 	int testPlasmaCannonPointsDirection(int x1, int y1, int x2, int y2);
 	void preloadLevelScreenData(uint8_t num, uint8_t prev);
-	void loadLevelScreenSounds(int num);
 	void setLvlObjectPosRelativeToObject(LvlObject *ptr1, int num1, LvlObject *ptr2, int num2);
 	void setLvlObjectPosRelativeToPoint(LvlObject *ptr, int num, int x, int y);
 	void clearLvlObjectsList0();
@@ -325,6 +327,7 @@ struct Game {
 	void callLevel_initialize();
 	void callLevel_tick();
 	void callLevel_terminate();
+	void displayLoadingScreen();
 	int displayHintScreen(int num, int pause);
 	void prependLvlObjectToList(LvlObject **list, LvlObject *ptr);
 	void removeLvlObjectFromList(LvlObject **list, LvlObject *ptr);
@@ -342,7 +345,7 @@ struct Game {
 	int lvlObjectType8Callback(LvlObject *o);
 	int lvlObjectList3Callback(LvlObject *o);
 	void lvlObjectSpecialPowersCallbackHelper1(LvlObject *o);
-	uint8_t lvlObjectSpecialPowersCallbackScreen(LvlObject *o);
+	uint8_t lvlObjectCallbackCollideScreen(LvlObject *o);
 	int lvlObjectSpecialPowersCallback(LvlObject *o);
 	void lvlObjectTypeCallback(LvlObject *o);
 	LvlObject *addLvlObject(int type, int x, int y, int screen, int num, int o_anim, int o_flags1, int o_flags2, int actionKeyMask, int directionKeyMask);
@@ -444,8 +447,8 @@ struct Game {
 	int mstOp56_specialAction(Task *t, int code, int num);
 	void mstOp57_addWormHoleSprite(int x, int y, int screenNum);
 	void mstOp58_addLvlObject(Task *t, int num);
-	void mstOp59_addShootSpecialPowers(int x, int y, int screenNum, int type, uint16_t flags);
-	void mstOp59_addShootFireball(int x, int y, int screenNum, int pos, int type, uint16_t flags);
+	void mstOp59_addShootSpecialPowers(int x, int y, int screenNum, int state, uint16_t flags);
+	void mstOp59_addShootFireball(int x, int y, int screenNum, int type, int state, uint16_t flags);
 	void mstTaskResetMonster1WalkPath(Task *t);
 	bool mstSetCurrentPos(MonsterObject1 *m, int x, int y);
 	void mstMonster1SetGoalHorizontal(MonsterObject1 *m);

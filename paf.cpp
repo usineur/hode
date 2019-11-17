@@ -17,7 +17,7 @@ static const char *_filenames[] = {
 
 static bool openPaf(FileSystem *fs, File *f) {
 	for (int i = 0; _filenames[i]; ++i) {
-		FILE *fp = fs->openFile(_filenames[i]);
+		FILE *fp = fs->openAssetFile(_filenames[i]);
 		if (fp) {
 			f->setFp(fp);
 			return true;
@@ -57,6 +57,7 @@ void PafPlayer::preload(int num) {
 	assert(num >= 0 && num < kMaxVideosCount);
 	if (_videoNum != num) {
 		unload(_videoNum);
+		_videoNum = num;
 	}
 	_file.seek(num * 4, SEEK_SET);
 	_videoOffset = _file.readUint32();
@@ -66,7 +67,10 @@ void PafPlayer::preload(int num) {
 	if (_pafHdr.framesCount == 0) {
 		return;
 	}
-	_videoNum = num;
+	if (!_pafHdr.frameBlocksCountTable || !_pafHdr.framesOffsetTable || !_pafHdr.frameBlocksOffsetTable) {
+		unload();
+		return;
+	}
 	for (int i = 0; i < 4; ++i) {
 		_pageBuffers[i] = (uint8_t *)calloc(kPageBufferSize, 1);
 	}
@@ -134,15 +138,17 @@ void PafPlayer::readPafHeader() {
 	_pafHdr.maxVideoFrameBlocksCount = READ_LE_UINT32(_bufferBlock + 0xA8);
 	_pafHdr.maxAudioFrameBlocksCount = READ_LE_UINT32(_bufferBlock + 0xAC);
 	_pafHdr.frameBlocksCount = READ_LE_UINT32(_bufferBlock + 0xA0);
-	_pafHdr.frameBlocksCountTable = (uint32_t *)malloc(_pafHdr.framesCount * sizeof(uint32_t));
-	readPafHeaderTable(_pafHdr.frameBlocksCountTable, _pafHdr.framesCount);
-	_pafHdr.framesOffsetTable = (uint32_t *)malloc(_pafHdr.framesCount * sizeof(uint32_t));
-	readPafHeaderTable(_pafHdr.framesOffsetTable, _pafHdr.framesCount);
-	_pafHdr.frameBlocksOffsetTable = (uint32_t *)malloc(_pafHdr.frameBlocksCount * sizeof(uint32_t));
-	readPafHeaderTable(_pafHdr.frameBlocksOffsetTable, _pafHdr.frameBlocksCount);
+	_pafHdr.frameBlocksCountTable = readPafHeaderTable(_pafHdr.framesCount);
+	_pafHdr.framesOffsetTable = readPafHeaderTable(_pafHdr.framesCount);
+	_pafHdr.frameBlocksOffsetTable = readPafHeaderTable(_pafHdr.frameBlocksCount);
 }
 
-void PafPlayer::readPafHeaderTable(uint32_t *dst, int count) {
+uint32_t *PafPlayer::readPafHeaderTable(int count) {
+	uint32_t *dst = (uint32_t *)malloc(count * sizeof(uint32_t));
+	if (!dst) {
+		warning("readPafHeaderTable() Unable to allocate %d bytes", count * sizeof(uint32_t));
+		return 0;
+	}
 	for (int i = 0; i < count; ++i) {
 		dst[i] = _file.readUint32();
 	}
@@ -150,6 +156,7 @@ void PafPlayer::readPafHeaderTable(uint32_t *dst, int count) {
 	if (align != 0) {
 		_file.seek(0x800 - align, SEEK_CUR);
 	}
+	return dst;
 }
 
 void PafPlayer::decodeVideoFrame(const uint8_t *src) {

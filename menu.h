@@ -40,7 +40,7 @@ struct Menu {
 	void loadData();
 
 	void drawSprite(const DatSpritesGroup *spriteGroup, uint32_t num);
-	void drawTitleScreen();
+	void drawBitmap(const DatBitmap *bitmap);
 
 	void mainLoop();
 };

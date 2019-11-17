@@ -96,13 +96,13 @@ void Video::clearPalette() {
 	_system->setPalette(_palette, 256);
 }
 
-void Video::decodeSPR(const uint8_t *src, uint8_t *dst, int x, int y, uint8_t flags) {
+void Video::decodeSPR(const uint8_t *src, uint8_t *dst, int x, int y, uint8_t flags, uint16_t spr_w, uint16_t spr_h) {
 	if (y >= _spr.h) {
 		return;
 	} else if (y < _spr.y) {
 		flags |= kSprClipTop;
 	}
-	const int y2 = y + READ_LE_UINT16(src + 4) - 1;
+	const int y2 = y + spr_h - 1;
 	if (y2 < _spr.y) {
 		return;
 	} else if (y2 >= _spr.h) {
@@ -114,14 +114,13 @@ void Video::decodeSPR(const uint8_t *src, uint8_t *dst, int x, int y, uint8_t fl
 	} else if (x < _spr.x) {
 		flags |= kSprClipLeft;
 	}
-	const int x2 = x + READ_LE_UINT16(src + 2) - 1;
+	const int x2 = x + spr_w - 1;
 	if (x2 < _spr.x) {
 		return;
 	} else if (x2 >= _spr.w) {
 		flags |= kSprClipRight;
 	}
 
-	src += 6;
 	if (flags & kSprHorizFlip) {
 		x = x2;
 	}

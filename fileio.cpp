@@ -7,6 +7,8 @@
 #include "fileio.h"
 #include "util.h"
 
+static const bool kCheckSectorFileCrc = true;
+
 File::File()
 	: _fp(0) {
 }
@@ -53,7 +55,7 @@ void File::flush() {
 
 SectorFile::SectorFile() {
 	memset(_buf, 0, sizeof(_buf));
-	_bufPos = _bufLen = 0;
+	_bufPos = 2044;
 }
 
 int fioAlignSizeTo2048(int size) {
@@ -62,22 +64,33 @@ int fioAlignSizeTo2048(int size) {
 
 uint32_t fioUpdateCRC(uint32_t sum, const uint8_t *buf, uint32_t size) {
 	assert((size & 3) == 0);
-	size >>= 2;
-	while (size--) {
-		sum ^= READ_LE_UINT32(buf); buf += 4;
+	for (uint32_t offset = 0; offset < size; offset += 4) {
+		sum ^= READ_LE_UINT32(buf + offset);
 	}
 	return sum;
 }
 
-void SectorFile::refillBuffer() {
-	int size = fread(_buf, 1, 2048, _fp);
-	if (size == 2048) {
-		uint32_t crc = fioUpdateCRC(0, _buf, 2048);
-		assert(crc == 0);
-		size -= 4;
+void SectorFile::refillBuffer(uint8_t *ptr) {
+	if (ptr) {
+		static const int kPayloadSize = kFioBufferSize - 4;
+		const int size = fread(ptr, 1, kPayloadSize, _fp);
+		assert(size == kPayloadSize);
+		uint8_t buf[4];
+		const int count = fread(buf, 1, 4, _fp);
+		assert(count == 4);
+		if (kCheckSectorFileCrc) {
+			const uint32_t crc = fioUpdateCRC(0, ptr, kPayloadSize);
+			assert(crc == READ_LE_UINT32(buf));
+		}
+	} else {
+		const int size = fread(_buf, 1, kFioBufferSize, _fp);
+		assert(size == kFioBufferSize);
+		if (kCheckSectorFileCrc) {
+			const uint32_t crc = fioUpdateCRC(0, _buf, kFioBufferSize);
+			assert(crc == 0);
+		}
+		_bufPos = 0;
 	}
-	_bufPos = 0;
-	_bufLen = size;
 }
 
 void SectorFile::seekAlign(int pos) {
@@ -87,49 +100,50 @@ void SectorFile::seekAlign(int pos) {
 	refillBuffer();
 	const int skipCount = pos - alignPos;
 	_bufPos += skipCount;
-	_bufLen -= skipCount;
 }
 
 void SectorFile::seek(int pos, int whence) {
 	if (whence == SEEK_SET) {
 		assert((pos & 2047) == 0);
-		_bufLen = _bufPos = 0;
+		_bufPos = 2044;
 		File::seek(pos, SEEK_SET);
 	} else {
 		assert(whence == SEEK_CUR && pos >= 0);
-		if (pos < _bufLen) {
-			_bufLen -= pos;
+		const int bufLen = 2044 - _bufPos;
+		if (pos < bufLen) {
 			_bufPos += pos;
 		} else {
-			pos -= _bufLen;
-			const int count = fioAlignSizeTo2048(pos) / 2048;
-			if (count > 1) {
-				const int alignPos = (count - 1) * 2048;
+			pos -= bufLen;
+			const int count = (fioAlignSizeTo2048(pos) / 2048) - 1;
+			if (count > 0) {
+				const int alignPos = count * 2048;
 				fseek(_fp, alignPos, SEEK_CUR);
 			}
 			refillBuffer();
 			_bufPos = pos % 2044;
-			_bufLen = 2044 - _bufPos;
 		}
 	}
 }
 
 int SectorFile::read(uint8_t *ptr, int size) {
-	if (size >= _bufLen) {
-		const int count = fioAlignSizeTo2048(size) / 2048;
-		for (int i = 0; i < count; ++i) {
-			memcpy(ptr, _buf + _bufPos, _bufLen);
-			ptr += _bufLen;
-			size -= _bufLen;
-			refillBuffer();
-			if (_bufLen == 0 || size < _bufLen) {
-				break;
-			}
+	const int bufLen = 2044 - _bufPos;
+	if (size >= bufLen) {
+		if (bufLen) {
+			memcpy(ptr, _buf + _bufPos, bufLen);
+			ptr += bufLen;
+			size -= bufLen;
 		}
+		const int count = (fioAlignSizeTo2048(size) / 2048) - 1;
+		for (int i = 0; i < count; ++i) {
+			refillBuffer(ptr);
+			ptr += 2044;
+			size -= 2044;
+		}
+		refillBuffer();
 	}
-	if (_bufLen != 0 && size != 0) {
+	if (size != 0) {
+		assert(size <= 2044 - _bufPos);
 		memcpy(ptr, _buf + _bufPos, size);
-		_bufLen -= size;
 		_bufPos += size;
 	}
 	return 0;
@@ -138,29 +152,5 @@ int SectorFile::read(uint8_t *ptr, int size) {
 void SectorFile::flush() {
 	const int currentPos = ftell(_fp);
 	assert((currentPos & 2047) == 0);
-	_bufLen = _bufPos = 0;
-}
-
-void fioDumpData(const char *filename, const uint8_t *data, int size) {
-	FILE *fp = fopen(filename, "wb");
-	if (fp) {
-		const int count = fwrite(data, 1, size, fp);
-		if (count != size) {
-			warning("Failed to write %d bytes, count %d", size, count);
-		}
-		fclose(fp);
-	}
-}
-
-int fioReadData(const char *filename, uint8_t *buf, int size) {
-	FILE *fp = fopen(filename, "rb");
-	if (fp) {
-		const int count = fread(buf, 1, size, fp);
-		if (count != size) {
-			warning("Failed to read %d bytes, count %d", size, count);
-		}
-		fclose(fp);
-		return count;
-	}
-	return 0;
+	_bufPos = 2044;
 }

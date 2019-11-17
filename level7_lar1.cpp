@@ -149,7 +149,7 @@ void Level_lar1::postScreenUpdate_lar1_screen0() {
 			BoundingBox b = { 0, 0, 63, 78 };
 			LvlObject *o = _g->findLvlObjectBoundingBox(&b);
 			if (o) {
-				if (((ShootLvlObjectData *)_g->getLvlObjectDataPtr(o, kObjectDataTypeShoot))->unk0 == 6) {
+				if (((ShootLvlObjectData *)_g->getLvlObjectDataPtr(o, kObjectDataTypeShoot))->type == 6) {
 					_res->_screensState[0].s0 = 4;
 				}
 			}
@@ -223,7 +223,6 @@ void Level_lar1::postScreenUpdate_lar1_screen5() {
 	_g->updateGatesLar(o3, &_lar1_gatesData[3 * 4], 3);
 	if (_res->_currentScreenResourceNum == 5) {
 		if (_checkpoint >= 1 && _checkpoint <= 3) {
-			_checkpoint = 2;
 			BoundingBox b = { 194, 0, 255, 88 };
 			AndyLvlObjectData *data = (AndyLvlObjectData *)_g->getLvlObjectDataPtr(_andyObject, kObjectDataTypeAndy);
 			if (_g->clipBoundingBox(&b, &data->boundingBox) && (_lar1_gatesData[0x18] & 0xF0) == 0x10) {
@@ -347,7 +346,7 @@ void Level_lar1::postScreenUpdate_lar1_screen14() {
 				BoundingBox b = { 33, 60, 76, 89 };
 				LvlObject *o = _g->findLvlObjectBoundingBox(&b);
 				if (o) {
-					if (((ShootLvlObjectData *)_g->getLvlObjectDataPtr(o, kObjectDataTypeShoot))->unk0 == 6) {
+					if (((ShootLvlObjectData *)_g->getLvlObjectDataPtr(o, kObjectDataTypeShoot))->type == 6) {
 						_res->_screensState[14].s0 = 3;
 					}
 				}

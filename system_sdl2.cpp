@@ -12,8 +12,6 @@
 
 static const char *kIconBmp = "icon.bmp";
 
-static const int kJoystickCommitValue = 3200;
-
 static int _scalerMultiplier = 3;
 static const Scaler *_scaler = &scaler_xbr;
 static const float _gamma = 1.f;
@@ -36,7 +34,7 @@ struct KeyMapping {
 
 struct System_SDL2 : System {
 	enum {
-		kCopyRectsSize = 200,
+		kJoystickCommitValue = 3200,
 		kKeyMappingsSize = 20,
 		kAudioHz = 22050,
 	};
@@ -425,7 +423,7 @@ void System_SDL2::processEvents() {
 			break;
 		case SDL_JOYHATMOTION:
 			if (_joystick) {
-				pad.mask = 0;
+				pad.mask &= ~(SYS_INP_UP | SYS_INP_DOWN | SYS_INP_LEFT | SYS_INP_RIGHT);
 				if (ev.jhat.value & SDL_HAT_UP) {
 					pad.mask |= SYS_INP_UP;
 				}
