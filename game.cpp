@@ -14,11 +14,7 @@
 #include "video.h"
 
 // menu settings and player progress
-#ifdef __vita__
-static const char *_setupCfg = "ux0:data/hode/setup.cfg";
-#else
 static const char *_setupCfg = "setup.cfg";
-#endif
 
 // starting level cutscene number
 static const uint8_t _cutscenes[] = { 0, 2, 4, 5, 6, 8, 10, 14, 19 };
