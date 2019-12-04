@@ -1610,9 +1610,9 @@ void Resource::loadMstData(File *fp) {
 		_mstOp211Data[i].unk9      = fp->readByte();
 		_mstOp211Data[i].unkA      = fp->readByte();
 		_mstOp211Data[i].unkB      = fp->readByte();
-		_mstOp211Data[i].unkC      = fp->readByte();
+		_mstOp211Data[i].indexVar3 = fp->readByte();
 		_mstOp211Data[i].unkD      = fp->readByte();
-		_mstOp211Data[i].unkE      = fp->readUint16();
+		_mstOp211Data[i].maskVars  = fp->readUint16();
 		bytesRead += 16;
 	}
 

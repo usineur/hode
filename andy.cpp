@@ -206,39 +206,39 @@ static const int _andyMoveTable7[] = { -1024, -1023, -1022, -512, -511, -510 };
 
 static const int _andyMoveTable8[] = { 0, 512, 1024, 1536 };
 
-static const int _andyMoveTable9[] = { 0, -4, -1, -1, 1, 0, 0, 0, 0, -2, -1, -1, -1, -1, -1, -1 };
+static const int _andyMoveTable9[] = { -1024, 1, -512, -1 };
 
-static const int _andyMoveTable10[] = { 0, -4, -1, -1, -1, -1, -1, -1, 0, -2, -1, -1, 1, 0, 0, 0 };
+static const int _andyMoveTable10[] = { -1024, -1, -512, 1 };
 
-static const int _andyMoveTable11[] = { 3, -2, -1, -1, 0, -2, -1, -1 };
+static const int _andyMoveTable11[] = { -509, -512 };
 
-static const int _andyMoveTable12[] = { -3, -3, -1, -1, 0, -2, -1, -1 };
+static const int _andyMoveTable12[] = { -515, -512 };
 
-static const int _andyMoveTable13[] = { 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1 };
+static const int _andyMoveTable13[] = { 1, 1, 1, 512, -1, -1 };
 
-static const int _andyMoveTable14[] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 };
+static const int _andyMoveTable14[] = { -1, -1, -1, 512, 1, 1 };
 
-static const int _andyMoveTable15[] = { 0, 6, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0 };
+static const int _andyMoveTable15[] = { 1536, 512, 1, 512 };
 
-static const int _andyMoveTable16[] = { 0, 6, 0, 0, 0, 2, 0, 0, -1, -1, -1, -1, 0, 2, 0, 0 };
+static const int _andyMoveTable16[] = { 1536, 512, -1, 512 };
 
-static const int _andyMoveTable17[] = { -2, 3, 0, 0, -1, -1, -1, -1, 0, 2, 0, 0, 1, 0, 0, 0 };
+static const int _andyMoveTable17[] = { 1022, -1, 512, 1 };
 
-static const int _andyMoveTable18[] = { 2, 4, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, -1, -1, -1, -1 };
+static const int _andyMoveTable18[] = { 1026, 1, 512, -1 };
 
-static const int _andyMoveTable19[] = { -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 };
+static const int _andyMoveTable19[] = { -2, -1, -1, 512, 1, 1 };
 
-static const int _andyMoveTable20[] = { 2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1 };
+static const int _andyMoveTable20[] = { 2, 1, 1, 512, -1, -1 };
 
-static const int _andyMoveTable21[] = { -1, -1, -1, -1, 0, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, -2, -1, -1 };
+static const int _andyMoveTable21[] = { -1, -512, -1, -1, -511 };
 
-static const int _andyMoveTable22[] = { 1, 0, 0, 0, 0, -2, -1, -1, 1, 0, 0, 0, 1, 0, 0, 0, -1, -3, -1, -1 };
+static const int _andyMoveTable22[] = { 1, -512, 1, 1, -513 };
 
-static const int _andyMoveTable23[] = { 0, -4, -1, -1, 0, -2, -1, -1 };
+static const int _andyMoveTable23[] = { -1024, -512 };
 
-static const int _andyMoveTable24[] = { 0, -4, -1, -1, 0, -2, -1, -1 };
+static const int _andyMoveTable24[] = { -1024, -512 };
 
-static const int _andyMoveTable25[] = { 1, 0, 0, 0, 0, -2, -1, -1, 1, 0, 0, 0, 1, 0, 0, 0, -1, -3, -1, -1 };
+static const int _andyMoveTable25[] = { 1, -512, 1, 1, -511 };
 
 static const int _andyMoveTable26[] = { -1, -512, -1, -1, -511 };
 
@@ -246,17 +246,17 @@ static const int _andyMoveTable27[] = { 1, 512, 512, 1, 1, 511, -1 };
 
 static const int _andyMoveTable28[] = { -1, 512, 512, -1, -1, 513, 1 };
 
-static const int _andyMoveTable29[] = { 0, 6, 0, 0, 0, 2, 0, 0 };
+static const int _andyMoveTable29[] = { 1536, 512 };
 
-static const int _andyMoveTable30[] = { 0, 6, 0, 0, 0, 2, 0, 0 };
+static const int _andyMoveTable30[] = { 1536, 512 };
 
-static const int _andyMoveTable31[] = { -1, -1, -1, -1, 0, 2, 0, 0, 0, 2, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, 1, 2, 0, 0, 1, 0, 0, 0 };
+static const int _andyMoveTable31[] = { -1, 512, 512, -1, -1, 513, 1 };
 
-static const int _andyMoveTable32[] = { 1, 0, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, -1, 1, 0, 0, -1, -1, -1, -1 };
+static const int _andyMoveTable32[] = { 1, 512, 512, 1, 1, 511, -1 };
 
-static const int _andyMoveTable33[] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 };
+static const int _andyMoveTable33[] = { -1, -1, -1, 512, 1, 1 };
 
-static const int _andyMoveTable34[] = { 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1 };
+static const int _andyMoveTable34[] = { 1, 1, 1, 512, -1, -1 };
 
 static const int _andyMoveTable35[] = {
 	  0,   0,   8,   0,  -8,   0,   8,   8,  -8,   8,   0,   8,   8,  -8,  -8,  -8,
@@ -1099,8 +1099,10 @@ int Game::moveAndyObjectOp3(int op) {
 		return 0;
 	case 76: {
 			const int *p = (_andyMoveMask & 1) != 0 ? _andyMoveTable10 : _andyMoveTable9;
+			int offset = _andyMaskBufferPos0;
 			for (int i = 0; i < 4; ++i) {
-				if ((_screenMaskBuffer[p[i] + _andyMaskBufferPos0] & 6) != 0) {
+				offset += p[i];
+				if ((_screenMaskBuffer[offset] & 6) != 0) {
 					return 0;
 				}
 			}
@@ -1108,8 +1110,10 @@ int Game::moveAndyObjectOp3(int op) {
 		return 1;
 	case 77: {
 			const int *p = (_andyMoveMask & 1) != 0 ? _andyMoveTable12 : _andyMoveTable11;
+			int offset = _andyMaskBufferPos0;
 			for (int i = 0; i < 2; ++i) {
-				if ((_screenMaskBuffer[p[i] + _andyMaskBufferPos0] & 6) != 0) {
+				offset += p[i];
+				if ((_screenMaskBuffer[offset] & 6) != 0) {
 					return 0;
 				}
 			}
@@ -1117,8 +1121,10 @@ int Game::moveAndyObjectOp3(int op) {
 		return 1;
 	case 78: {
 			const int *p = (_andyMoveMask & 1) != 0 ? _andyMoveTable14 : _andyMoveTable13;
+			int offset = _andyMaskBufferPos0;
 			for (int i = 0; i < 6; ++i) {
-				if ((_screenMaskBuffer[p[i] + _andyMaskBufferPos0] & 6) != 0) {
+				offset += p[i];
+				if ((_screenMaskBuffer[offset] & 6) != 0) {
 					return 0;
 				}
 			}
@@ -1126,8 +1132,10 @@ int Game::moveAndyObjectOp3(int op) {
 		return 1;
 	case 79: {
 			const int *p = (_andyMoveMask & 1) != 0 ? _andyMoveTable16 : _andyMoveTable15;
+			int offset = _andyMaskBufferPos0;
 			for (int i = 0; i < 4; ++i) {
-				if ((_screenMaskBuffer[p[i] + _andyMaskBufferPos0] & 6) != 0) {
+				offset += p[i];
+				if ((_screenMaskBuffer[offset] & 6) != 0) {
 					return 0;
 				}
 			}
@@ -1135,8 +1143,10 @@ int Game::moveAndyObjectOp3(int op) {
 		return 1;
 	case 80: {
 			const int *p = (_andyMoveMask & 1) != 0 ? _andyMoveTable18 : _andyMoveTable17;
+			int offset = _andyMaskBufferPos0;
 			for (int i = 0; i < 4; ++i) {
-				if ((_screenMaskBuffer[p[i] + _andyMaskBufferPos0] & 3) != 0) {
+				offset += p[i];
+				if ((_screenMaskBuffer[offset] & 3) != 0) {
 					return 0;
 				}
 			}
@@ -1144,8 +1154,10 @@ int Game::moveAndyObjectOp3(int op) {
 		return 1;
 	case 81: {
 			const int *p = (_andyMoveMask & 1) != 0 ? _andyMoveTable20 : _andyMoveTable19;
+			int offset = _andyMaskBufferPos0;
 			for (int i = 0; i < 6; ++i) {
-				if ((_screenMaskBuffer[p[i] + _andyMaskBufferPos0] & 6) != 0) {
+				offset += p[i];
+				if ((_screenMaskBuffer[offset] & 6) != 0) {
 					return 0;
 				}
 			}
@@ -1153,8 +1165,10 @@ int Game::moveAndyObjectOp3(int op) {
 		return 1;
 	case 82: {
 			const int *p = (_andyMoveMask & 1) == 0 ? _andyMoveTable21 : _andyMoveTable22;
+			int offset = _andyMaskBufferPos0;
 			for (int i = 0; i < 5; ++i) {
-				if ((_screenMaskBuffer[p[i] + _andyMaskBufferPos0] & 6) != 0) {
+				offset += p[i];
+				if ((_screenMaskBuffer[offset] & 6) != 0) {
 					return 0;
 				}
 			}
@@ -1162,8 +1176,10 @@ int Game::moveAndyObjectOp3(int op) {
 		return 1;
 	case 83: {
 			const int *p = (_andyMoveMask & 1) == 0 ? _andyMoveTable23 : _andyMoveTable24;
+			int offset = _andyMaskBufferPos0;
 			for (int i = 0; i < 2; ++i) {
-				if ((_screenMaskBuffer[p[i] + _andyMaskBufferPos0] & 6) != 0) {
+				offset += p[i];
+				if ((_screenMaskBuffer[offset] & 6) != 0) {
 					return 0;
 				}
 			}
@@ -1171,8 +1187,10 @@ int Game::moveAndyObjectOp3(int op) {
 		return 1;
 	case 84: {
 			const int *p = (_andyMoveMask & 1) == 0 ? _andyMoveTable25 : _andyMoveTable26;
+			int offset = _andyMaskBufferPos0;
 			for (int i = 0; i < 5; ++i) {
-				if ((_screenMaskBuffer[p[i] + _andyMaskBufferPos0] & 6) != 0) {
+				offset += p[i];
+				if ((_screenMaskBuffer[offset] & 6) != 0) {
 					return 0;
 				}
 			}
@@ -1180,8 +1198,10 @@ int Game::moveAndyObjectOp3(int op) {
 		return 1;
 	case 85: {
 			const int *p = (_andyMoveMask & 1) == 0 ? _andyMoveTable27 : _andyMoveTable28;
+			int offset = _andyMaskBufferPos0;
 			for (int i = 0; i < 7; ++i) {
-				if ((_screenMaskBuffer[p[i] + _andyMaskBufferPos0] & 6) != 0) {
+				offset += p[i];
+				if ((_screenMaskBuffer[offset] & 6) != 0) {
 					return 0;
 				}
 			}
@@ -1189,8 +1209,10 @@ int Game::moveAndyObjectOp3(int op) {
 		return 1;
 	case 86: {
 			const int *p = (_andyMoveMask & 1) == 0 ? _andyMoveTable29 : _andyMoveTable30;
+			int offset = _andyMaskBufferPos0;
 			for (int i = 0; i < 2; ++i) {
-				if ((_screenMaskBuffer[p[i] + _andyMaskBufferPos0] & 6) != 0) {
+				offset += p[i];
+				if ((_screenMaskBuffer[offset] & 6) != 0) {
 					return 0;
 				}
 			}
@@ -1198,8 +1220,10 @@ int Game::moveAndyObjectOp3(int op) {
 		return 1;
 	case 87: {
 			const int *p = (_andyMoveMask & 1) == 0 ? _andyMoveTable31 : _andyMoveTable32;
+			int offset = _andyMaskBufferPos0;
 			for (int i = 0; i < 7; ++i) {
-				if ((_screenMaskBuffer[p[i] + _andyMaskBufferPos0] & 6) != 0) {
+				offset += p[i];
+				if ((_screenMaskBuffer[offset] & 6) != 0) {
 					return 0;
 				}
 			}
@@ -1207,8 +1231,10 @@ int Game::moveAndyObjectOp3(int op) {
 		return 1;
 	case 88: {
 			const int *p = (_andyMoveMask & 1) == 0 ? _andyMoveTable33 : _andyMoveTable34;
+			int offset = _andyMaskBufferPos0;
 			for (int i = 0; i < 6; ++i) {
-				if ((_screenMaskBuffer[p[i] + _andyMaskBufferPos0] & 6) != 0) {
+				offset += p[i];
+				if ((_screenMaskBuffer[offset] & 6) != 0) {
 					return 0;
 				}
 			}

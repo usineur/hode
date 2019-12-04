@@ -8,8 +8,6 @@
 
 #include "intern.h"
 
-struct System;
-
 enum {
 	kSprHorizFlip  = 1 << 0, // left-right
 	kSprVertFlip   = 1 << 1, // up-down
@@ -26,8 +24,6 @@ struct Video {
 	};
 
 	static const uint8_t _fontCharactersTable[78];
-
-	System *_system;
 
 	uint8_t _palette[256 * 3];
 	uint16_t _displayPaletteBuffer[256 * 3];
@@ -59,7 +55,7 @@ struct Video {
 		int x, y, w, h;
 	} _spr;
 
-	Video(System *system);
+	Video();
 	~Video();
 
 	void refreshGamePalette(const uint16_t *pal);

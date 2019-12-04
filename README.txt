@@ -1,6 +1,6 @@
 
 hode README
-Release version: 0.2.2
+Release version: 0.2.3
 -------------------------------------------------------------------------------
 
 
@@ -16,11 +16,14 @@ Datafiles:
 
 The original datafiles from the Windows releases (Demo or CD) are required.
 
-- hod.paf (hod_demo.paf)
+- hod.paf (hod_demo.paf, hod_demo2.paf)
 - setup.dat
 - *_hod.lvl
 - *_hod.sss
 - *_hod.mst
+
+See also the 'RELEASES.yaml' file for a list of game versions this program
+has been tested with.
 
 
 Running:
@@ -33,34 +36,35 @@ These defaults can be changed using command line switches :
 
     Usage: hode [OPTIONS]...
     --datapath=PATH   Path to data files (default '.')
+    --savepath=PATH   Path to save files (default '.')
     --level=NUM       Start at level NUM
     --checkpoint=NUM  Start at checkpoint NUM
 
 Display and engine settings can be configured in the 'hode.ini' file.
 
+Game progress is saved in 'setup.cfg', similar to the original engine.
+
 
 Status:
 -------
 
-What is working :
-* Andy
-* Cinematics (PAF)
-* Hint screens
-* Level screens
-* Monsters logic (MST)
-* Plasma Cannon
-* Shooting collisions
-* Sound playback (SSS)
-* Special Powers
+Menus are currently missing.
 
-What is missing :
-* Menus
+PSX datafiles can be used but sound (SPU ADPCM) and background screens (MDEC)
+are not handled yet.
 
 
 Credits:
 --------
 
-All the team at Amazing Studio for possibly the best cinematic platformer ever developed.
+All the team at Amazing Studio for possibly the best cinematic platformer ever
+developed.
+
+
+Contact:
+--------
+
+Gregory Montoir, cyx@users.sourceforge.net
 
 
 URLs:

@@ -20,7 +20,7 @@ uint32_t Game::benchmarkLoop(const uint8_t *p, int count) {
 }
 
 uint32_t Game::benchmarkCpu() {
-	const uint32_t t0 = _system->getTimeStamp();
+	const uint32_t t0 = g_system->getTimeStamp();
 	uint8_t *p = _video->_shadowLayer;
 	int count = 32;
 	do {
@@ -29,7 +29,7 @@ uint32_t Game::benchmarkCpu() {
 		decodeLZW(_pwr2_screenTransformData, p);
 		_video->updateGameDisplay(p);
 	} while (--count != 0);
-	const uint32_t score = _system->getTimeStamp() - t0;
+	const uint32_t score = g_system->getTimeStamp() - t0;
 	// The original engine flags the CPU as 'slow'
 	// if the GetTickCount difference is >= 1100ms
 	warning("benchmark CPU %d", score);

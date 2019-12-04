@@ -9,8 +9,7 @@
 static const bool kUseShadowColorLut = false;
 static const bool _findBlackColor = false;
 
-Video::Video(System *system)
-	: _system(system) {
+Video::Video() {
 	_displayShadowLayer = false;
 	_drawLine.x1 = 0;
 	_drawLine.y1 = 0;
@@ -68,7 +67,7 @@ void Video::refreshGamePalette(const uint16_t *pal) {
 			}
 		}
 	}
-	_system->setPalette(_palette, 256);
+	g_system->setPalette(_palette, 256);
 }
 
 void Video::updateGameDisplay(uint8_t *buf) {
@@ -79,21 +78,21 @@ void Video::updateGameDisplay(uint8_t *buf) {
 			}
 		}
 	}
-	_system->copyRect(0, 0, W, H, buf, 256);
+	g_system->copyRect(0, 0, W, H, buf, 256);
 }
 
 void Video::updateScreen() {
-	_system->updateScreen(true);
+	g_system->updateScreen(true);
 }
 
 void Video::fillBackBuffer() {
-	_system->fillRect(0, 0, W, H, _fillColor);
+	g_system->fillRect(0, 0, W, H, _fillColor);
 }
 
 void Video::clearPalette() {
 	memset(_palette, 0, sizeof(_palette));
 	_refreshPalette = true;
-	_system->setPalette(_palette, 256);
+	g_system->setPalette(_palette, 256);
 }
 
 void Video::decodeSPR(const uint8_t *src, uint8_t *dst, int x, int y, uint8_t flags, uint16_t spr_w, uint16_t spr_h) {

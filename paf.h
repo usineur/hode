@@ -52,7 +52,6 @@ enum {
 };
 
 struct FileSystem;
-struct System;
 
 struct PafAudioQueue {
 	int16_t *buffer; // stereo samples
@@ -74,7 +73,6 @@ struct PafPlayer {
 	};
 
 	bool _skipCutscenes;
-	System *_system;
 	FileSystem *_fs;
 	File _file;
 	int _videoNum;
@@ -92,7 +90,7 @@ struct PafPlayer {
 	uint32_t _flushAudioSize;
 	uint32_t _playedMask;
 
-	PafPlayer(System *system, FileSystem *fs);
+	PafPlayer(FileSystem *fs);
 	~PafPlayer();
 
 	void preload(int num);

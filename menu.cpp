@@ -7,8 +7,8 @@
 #include "util.h"
 #include "video.h"
 
-Menu::Menu(PafPlayer *paf, Resource *res, System *system, Video *video)
-	: _paf(paf), _res(res), _system(system), _video(video) {
+Menu::Menu(PafPlayer *paf, Resource *res, Video *video)
+	: _paf(paf), _res(res), _video(video) {
 	_titleSprites = 0;
 	_playerSprites = 0;
 	_titleBitmap = 0;
@@ -61,29 +61,29 @@ void Menu::drawBitmap(const DatBitmap *bitmap) {
 	const uint32_t uncompressedSize = decodeLZW(data, _video->_frontLayer);
 	assert(uncompressedSize == Video::W * Video::H);
 	const uint8_t *palette = data + bitmap->size;
-	_system->setPalette(palette, 256, 6);
+	g_system->setPalette(palette, 256, 6);
 	if (bitmap == _titleBitmap) {
 		drawSprite(_titleSprites, _currentOption);
 	}
-	_system->copyRect(0, 0, Video::W, Video::H, _video->_frontLayer, Video::W);
-	_system->updateScreen(false);
+	g_system->copyRect(0, 0, Video::W, Video::H, _video->_frontLayer, Video::W);
+	g_system->updateScreen(false);
 }
 
 void Menu::mainLoop() {
 	loadData();
-	while (!_system->inp.quit) {
-		if (_system->inp.keyReleased(SYS_INP_UP)) {
+	while (!g_system->inp.quit) {
+		if (g_system->inp.keyReleased(SYS_INP_UP)) {
 			if (_currentOption > 0) {
 				--_currentOption;
 			}
 		}
-		if (_system->inp.keyReleased(SYS_INP_DOWN)) {
+		if (g_system->inp.keyReleased(SYS_INP_DOWN)) {
 			if (_currentOption < 3) {
 				++_currentOption;
 			}
 		}
 		drawBitmap(_titleBitmap);
-		_system->processEvents();
-		_system->sleep(15);
+		g_system->processEvents();
+		g_system->sleep(15);
 	}
 }

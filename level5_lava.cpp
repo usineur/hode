@@ -434,7 +434,7 @@ void Level_lava::postScreenUpdate_lava_screen14() {
 }
 
 void Level_lava::postScreenUpdate_lava_screen15() {
-	if (_res->_screensState[0].s0 != 0) {
+	if (_res->_screensState[15].s0 != 0) {
 		if (!_paf->_skipCutscenes) {
 			_paf->play(8);
 			_paf->unload(8);
