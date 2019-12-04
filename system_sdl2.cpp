@@ -545,6 +545,15 @@ void System_SDL2::processEvents() {
 						pad.mask &= ~SYS_INP_DOWN;
 					}
 					break;
+#ifdef __SWITCH__
+				case SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
+					if (ev.caxis.value > 0) {
+						pad.mask |= SYS_INP_RUN;
+					} else {
+						pad.mask &= ~SYS_INP_RUN;
+					}
+					break;
+#endif
 				}
 			}
 			break;
