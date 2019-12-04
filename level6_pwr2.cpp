@@ -163,7 +163,7 @@ void Level_pwr2::preScreenUpdate_pwr2_screen5() {
 
 void Level_pwr2::preScreenUpdate_pwr2_screen7() {
 	if (_res->_currentScreenResourceNum == 7) {
-		_res->_screensState[5].s0 = 2; // +0x14
+		_res->_screensState[5].s0 = 2;
 		if (!_paf->_skipCutscenes) {
 			_paf->preload(10);
 		}

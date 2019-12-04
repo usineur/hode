@@ -70,9 +70,16 @@ Level *Level_lar2_create() {
 }
 
 static uint8_t _lar2_gatesData[10 * 4] = {
-	0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00,
-	0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
-	0x12, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00
+	0x02, 0x00, 0x00, 0x00, // screen 2
+	0x02, 0x00, 0x00, 0x00, // screen 3
+	0x02, 0x00, 0x00, 0x00, // screen 4
+	0x12, 0x00, 0x00, 0x00, // screen 5
+	0x02, 0x00, 0x00, 0x00, // screen 10
+	0x02, 0x00, 0x00, 0x00, // screen 11
+	0x02, 0x00, 0x00, 0x00, // screen 11
+	0x02, 0x00, 0x00, 0x00, // screen 8
+	0x12, 0x00, 0x00, 0x00, // screen 12
+	0x02, 0x00, 0x00, 0x00  // screen 12
 };
 
 static BoundingBox _lar2_switchesBbox[13] = {
@@ -181,9 +188,9 @@ void Level_lar2::postScreenUpdate_lar2_screen4() {
 			_paf->play(18);
 			_paf->unload(18);
 			_video->clearPalette();
-			_g->updateScreen(_andyObject->screenNum);
 		}
 		_g->_currentLevelCheckpoint = _checkpoint; // bugfix: conditioned with _pafSkipCutscenes
+		_g->updateScreen(_andyObject->screenNum);
 	}
 	LvlObject *o = _g->findLvlObject(2, 0, 4);
 	_g->updateGatesLar(o, _lar2_gatesData + 8, 2);
@@ -200,14 +207,14 @@ void Level_lar2::postScreenUpdate_lar2_screen5() {
 void Level_lar2::postScreenUpdate_lar2_screen6() {
 	if (_res->_currentScreenResourceNum == 6) {
 		if (_checkpoint == 7) {
-			if (!_paf->_skipCutscenes) {
-				if (_g->_currentLevelCheckpoint == 6) {
+			if (_g->_currentLevelCheckpoint == 6) {
+				if (!_paf->_skipCutscenes) {
 					_paf->play(17);
 					_paf->unload(17);
 					_video->clearPalette();
-					_g->updateScreen(_andyObject->screenNum);
 				}
 				_g->_currentLevelCheckpoint = _checkpoint; // bugfix: conditioned with _pafSkipCutscenes
+				_g->updateScreen(_andyObject->screenNum);
 			}
 		} else if (_checkpoint == 3) {
 			if (_res->_screensState[6].s0 != 0) {
@@ -215,27 +222,24 @@ void Level_lar2::postScreenUpdate_lar2_screen6() {
 					_paf->play(15);
 					_paf->unload(15);
 					_video->clearPalette();
-					_res->_screensState[6].s0 = 0;
-					_g->updateScreen(_andyObject->screenNum);
 				}
 				_res->_screensState[6].s0 = 0; // bugfix: conditioned with _pafSkipCutscenes
+				_g->updateScreen(_andyObject->screenNum);
 			}
-
 		}
 	}
 }
 
 void Level_lar2::postScreenUpdate_lar2_screen7() {
 	if (_res->_currentScreenResourceNum == 7) {
-		if (!_paf->_skipCutscenes) {
-			const uint8_t state = _res->_screensState[7].s0;
-			if (_checkpoint == 5 && state > 1) {
+		if (_checkpoint == 5 && _res->_screensState[7].s0 > 1) {
+			if (!_paf->_skipCutscenes) {
 				_paf->play(16);
 				_paf->unload(16);
 				_video->clearPalette();
-				_res->_screensState[7].s0 = 1;
-				_g->updateScreen(_andyObject->screenNum);
 			}
+			_res->_screensState[7].s0 = 1; // bugfix: conditioned with _pafSkipCutscenes
+			_g->updateScreen(_andyObject->screenNum);
 		}
 	}
 }
@@ -559,6 +563,9 @@ void Level_lar2::setupScreenCheckpoint_lar2_screen19() {
 			_g->_mstAndyVarMask |= mask;
 		}
 		_g->_mstLevelGatesMask |= mask;
+	}
+	if (g_debugMask & kDebug_SWITCHES) {
+		_g->dumpSwitchesLar(13, _lar2_switchesData, _lar2_switchesBbox, 10, _lar2_gatesData);
 	}
 }
 

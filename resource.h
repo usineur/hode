@@ -379,17 +379,17 @@ struct MstOp197Data {
 }; // sizeof == 16
 
 struct MstOp211Data {
-	uint16_t indexVar1; // 0
-	uint16_t indexVar2; // 2
+	int16_t indexVar1; // 0
+	int16_t indexVar2; // 2
 	uint16_t unk4; // 4
 	int16_t unk6; // 6
 	uint8_t unk8; // 8
 	uint8_t unk9; // 9
 	uint8_t unkA; // A
 	uint8_t unkB; // B
-	uint8_t unkC; // C
+	int8_t indexVar3; // C
 	uint8_t unkD; // D
-	uint16_t unkE; // E
+	uint16_t maskVars; // E
 }; // sizeof == 16
 
 struct SssHdr {

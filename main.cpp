@@ -26,30 +26,22 @@ static const char *_usage =
 	"hode - Heart of Darkness Interpreter\n"
 	"Usage: %s [OPTIONS]...\n"
 	"  --datapath=PATH   Path to data files (default '.')\n"
+	"  --savepath=PATH   Path to save files (default '.')\n"
 	"  --level=NUM       Start at level NUM\n"
 	"  --checkpoint=NUM  Start at checkpoint NUM\n"
 ;
 
 static bool _fullscreen = false;
 static bool _widescreen = false;
-static System *_system = 0;
 
 static const bool _runBenchmark = false;
 static const bool _runMenu = false;
 
-static void exitMain() {
-	if (_system) {
-		_system->destroy();
-		delete _system;
-		_system = 0;
-	}
-}
-
 static void lockAudio(int flag) {
 	if (flag) {
-		_system->lockAudio();
+		g_system->lockAudio();
 	} else {
-		_system->unlockAudio();
+		g_system->unlockAudio();
 	}
 }
 
@@ -59,11 +51,11 @@ static void mixAudio(void *userdata, int16_t *buf, int len) {
 
 static void setupAudio(Game *g) {
 	g->_mix._lock = lockAudio;
-	g->_mix.init(_system->getOutputSampleRate());
+	g->_mix.init(g_system->getOutputSampleRate());
 	AudioCallback cb;
 	cb.proc = mixAudio;
 	cb.userdata = g;
-	_system->startAudio(cb);
+	g_system->startAudio(cb);
 }
 
 static const char *_defaultDataPath = ".";
@@ -111,11 +103,11 @@ static int handleConfigIni(void *userdata, const char *section, const char *name
 	} else if (strcmp(section, "display") == 0) {
 		if (strcmp(name, "scale_factor") == 0) {
 			const int scale = atoi(value);
-			_system->setScaler(0, scale);
+			g_system->setScaler(0, scale);
 		} else if (strcmp(name, "scale_algorithm") == 0) {
-			_system->setScaler(value, 0);
+			g_system->setScaler(value, 0);
 		} else if (strcmp(name, "gamma") == 0) {
-			_system->setGamma(atof(value));
+			g_system->setGamma(atof(value));
 		} else if (strcmp(name, "fullscreen") == 0) {
 			_fullscreen = configBool(value);
 		} else if (strcmp(name, "widescreen") == 0) {
@@ -192,18 +184,16 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 	}
-	_system = System_SDL2_create();
-	atexit(exitMain);
-	Game *g = new Game(_system, dataPath ? dataPath : _defaultDataPath, savePath ? savePath : _defaultSavePath, cheats);
+	Game *g = new Game(dataPath ? dataPath : _defaultDataPath, savePath ? savePath : _defaultSavePath, cheats);
 	ini_parse(_configIni, handleConfigIni, g);
 	setupAudio(g);
-	_system->init(_title, Video::W, Video::H, _fullscreen, _widescreen);
+	g_system->init(_title, Video::W, Video::H, _fullscreen, _widescreen);
 	if (_runBenchmark) {
 		g->benchmarkCpu();
 	}
 	g->_res->loadSetupDat();
 	if (_runMenu) {
-		Menu *m = new Menu(g->_paf, g->_res, _system, g->_video);
+		Menu *m = new Menu(g->_paf, g->_res, g->_video);
 		m->mainLoop();
 		delete m;
 	} else {
@@ -217,11 +207,12 @@ int main(int argc, char *argv[]) {
 			level += 1;
 			checkpoint = 0;
 			levelChanged = true;
-		} while (!_system->inp.quit && level < kLvl_test);
+		} while (!g_system->inp.quit && level < kLvl_test);
 		g->saveSetupCfg();
 	}
-	_system->stopAudio();
+	g_system->stopAudio();
 	g->_mix.fini();
+	g_system->destroy();
 	delete g;
 	free(dataPath);
 	free(savePath);

@@ -86,9 +86,8 @@ struct System_SDL2 : System {
 	void prepareScaledGfx(const char *caption, bool fullscreen, bool widescreen);
 };
 
-System *System_SDL2_create() {
-	return new System_SDL2();
-}
+static System_SDL2 system_sdl2;
+System *const g_system = &system_sdl2;
 
 System_SDL2::System_SDL2() :
 	_offscreenLut(0), _offscreenRgb(0),

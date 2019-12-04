@@ -19,15 +19,14 @@ static const char *_setupCfg = "setup.cfg";
 // starting level cutscene number
 static const uint8_t _cutscenes[] = { 0, 2, 4, 5, 6, 8, 10, 14, 19 };
 
-Game::Game(System *system, const char *dataPath, const char *savePath, uint32_t cheats)
+Game::Game(const char *dataPath, const char *savePath, uint32_t cheats)
 	: _fs(dataPath, savePath) {
 
 	_level = 0;
 	_res = new Resource(&_fs);
-	_paf = new PafPlayer(system, &_fs);
+	_paf = new PafPlayer(&_fs);
 	_rnd.setSeed();
-	_video = new Video(system);
-	_system = system;
+	_video = new Video();
 	_cheats = cheats;
 
 	_frameMs = kFrameTimeStamp;
@@ -169,7 +168,7 @@ void Game::shakeScreen() {
 			if (_shakeScreenDuration & 1) {
 				dy = -dy;
 			}
-			_system->shakeScreen(dx, dy);
+			g_system->shakeScreen(dx, dy);
 		}
 	}
 	if (_levelRestartCounter != 0) {
@@ -466,6 +465,15 @@ void Game::setupScreenMask(uint8_t num) {
 		for (int i = 0; i < 24; ++i) {
 			memcpy(p, _screenTempMaskBuffer + i * 32, 32);
 			p += 512;
+		}
+		if (0) {
+			fprintf(stdout, "screen %d mask %d\n", num, mask);
+			for (int y = 0; y < 24; ++y) {
+				for (int x = 0; x < 32; ++x) {
+					fprintf(stdout, "%02d ", _screenTempMaskBuffer[y * 32 + x]);
+				}
+				fputc('\n', stdout);
+			}
 		}
 	}
 	if (_res->_currentScreenResourceNum == num) {
@@ -2098,8 +2106,16 @@ void Game::mainLoop(int level, int checkpoint, bool levelChanged) {
 	_mix._lock(0);
 	_mstAndyCurrentScreenNum = -1;
 	_rnd.initTable();
-	initMstCode();
-	preloadLevelScreenData(_level->getCheckpointData(_level->_checkpoint)->screenNum, kNoScreen);
+	const int screenNum = _level->getCheckpointData(checkpoint)->screenNum;
+	if (_mstDisabled) {
+		_specialAnimMask = 0;
+		_mstCurrentAnim = 0;
+		_mstOriginPosX = Video::W / 2;
+		_mstOriginPosY = Video::H / 2;
+	} else {
+		_currentScreen = screenNum; // bugfix: clear previous level screen number
+		initMstCode();
+	}
 	memset(_level->_screenCounterTable, 0, sizeof(_level->_screenCounterTable));
 	clearDeclaredLvlObjectsList();
 	initLvlObjects();
@@ -2118,26 +2134,23 @@ void Game::mainLoop(int level, int checkpoint, bool levelChanged) {
 		_paf->preload(num);
 		_paf->play(num);
 		_paf->unload(num);
-		if (_system->inp.quit) {
+		if (g_system->inp.quit) {
 			return;
 		}
-	}
-	if (_res->_sssHdr.infosDataCount != 0) {
-		resetSound();
 	}
 	_endLevel = false;
 	resetShootLvlObjectDataTable();
 	callLevel_initialize();
 	restartLevel();
 	do {
-		const int frameTimeStamp = _system->getTimeStamp() + _frameMs;
+		const int frameTimeStamp = g_system->getTimeStamp() + _frameMs;
 		levelMainLoop();
-		int diff = frameTimeStamp - _system->getTimeStamp();
+		int diff = frameTimeStamp - g_system->getTimeStamp();
 		if (diff < 10) {
 			diff = 10;
 		}
-		_system->sleep(diff);
-	} while (!_system->inp.quit && !_endLevel);
+		g_system->sleep(diff);
+	} while (!g_system->inp.quit && !_endLevel);
 	_animBackgroundDataCount = 0;
 	callLevel_terminate();
 }
@@ -2637,7 +2650,7 @@ void Game::updateAndyMonsterObjects() {
 }
 
 void Game::updateInput() {
-	const uint8_t inputMask = _system->inp.mask;
+	const uint8_t inputMask = g_system->inp.mask;
 	if (inputMask & SYS_INP_RUN) {
 		_actionKeyMask |= kActionKeyMaskRun;
 	}
@@ -2713,11 +2726,11 @@ void Game::levelMainLoop() {
 	if (_video->_paletteNeedRefresh) {
 		_video->_paletteNeedRefresh = false;
 		_video->refreshGamePalette(_video->_displayPaletteBuffer);
-		_system->copyRectWidescreen(Video::W, Video::H, _video->_backgroundLayer, _video->_palette);
+		g_system->copyRectWidescreen(Video::W, Video::H, _video->_backgroundLayer, _video->_palette);
 	}
 	drawScreen();
-	if (_system->inp.screenshot) {
-		_system->inp.screenshot = false;
+	if (g_system->inp.screenshot) {
+		g_system->inp.screenshot = false;
 		captureScreenshot();
 	}
 	if (_cheats != 0) {
@@ -2736,10 +2749,10 @@ void Game::levelMainLoop() {
 		_video->updateGameDisplay(_video->_frontLayer);
 	}
 	_rnd.update();
-	_system->processEvents();
-	if (_system->inp.keyPressed(SYS_INP_ESC)) { // display exit confirmation screen
+	g_system->processEvents();
+	if (g_system->inp.keyPressed(SYS_INP_ESC)) { // display exit confirmation screen
 		if (displayHintScreen(-1, 0)) {
-			_system->inp.quit = true;
+			g_system->inp.quit = true;
 			return;
 		}
 	} else {
@@ -2806,9 +2819,9 @@ void Game::callLevel_terminate() {
 
 void Game::displayLoadingScreen() {
 	if (_res->loadDatLoadingImage(_video->_frontLayer, _video->_palette)) {
-		_system->setPalette(_video->_palette, 256, 6);
-		_system->copyRect(0, 0, Video::W, Video::H, _video->_frontLayer, 256);
-		_system->updateScreen(false);
+		g_system->setPalette(_video->_palette, 256, 6);
+		g_system->copyRect(0, 0, Video::W, Video::H, _video->_frontLayer, 256);
+		g_system->updateScreen(false);
 	}
 }
 
@@ -2828,27 +2841,27 @@ int Game::displayHintScreen(int num, int pause) {
 		confirmQuit = true;
 	}
 	if (_res->loadDatHintImage(num, _video->_frontLayer, _video->_palette)) {
-		_system->setPalette(_video->_palette, 256, 6);
-		_system->copyRect(0, 0, Video::W, Video::H, _video->_frontLayer, 256);
-		_system->updateScreen(false);
+		g_system->setPalette(_video->_palette, 256, 6);
+		g_system->copyRect(0, 0, Video::W, Video::H, _video->_frontLayer, 256);
+		g_system->updateScreen(false);
 	}
 	do {
-		_system->processEvents();
+		g_system->processEvents();
 		if (confirmQuit) {
 			const int currentQuit = quit;
-			if (_system->inp.keyReleased(SYS_INP_LEFT)) {
+			if (g_system->inp.keyReleased(SYS_INP_LEFT)) {
 				quit = kQuitNo;
 			}
-			if (_system->inp.keyReleased(SYS_INP_RIGHT)) {
+			if (g_system->inp.keyReleased(SYS_INP_RIGHT)) {
 				quit = kQuitYes;
 			}
 			if (currentQuit != quit) {
-				_system->copyRect(0, 0, Video::W, Video::H, quitBuffers[quit], 256);
-				_system->updateScreen(false);
+				g_system->copyRect(0, 0, Video::W, Video::H, quitBuffers[quit], 256);
+				g_system->updateScreen(false);
 			}
 		}
-		_system->sleep(30);
-	} while (!_system->inp.quit && !_system->inp.keyReleased(SYS_INP_JUMP));
+		g_system->sleep(30);
+	} while (!g_system->inp.quit && !g_system->inp.keyReleased(SYS_INP_JUMP));
 	unmuteSound();
 	_video->_paletteNeedRefresh = true;
 	return confirmQuit && quit == kQuitYes;
@@ -4436,7 +4449,7 @@ void Game::updateGatesLar(LvlObject *o, uint8_t *p, int num) {
 		}
 	}
 	// gate closing on Andy
-	if (o->screenNum == _res->_currentScreenResourceNum && o->directionKeyMask == 4) {
+	if ((_cheats & kCheatGateNoCrush) == 0 && o->screenNum == _res->_currentScreenResourceNum && o->directionKeyMask == 4) {
 		if ((o->flags0 & 0x1F) == 1 && (o->flags0 & 0xE0) == 0x40) {
 			if (!_hideAndyObjectFlag && (_mstFlags & 0x80000000) == 0) {
 				if (clipLvlObjectsBoundingBox(_andyObject, o, 132)) {
@@ -4542,25 +4555,8 @@ int Game::updateSwitchesLar_checkAndy(int num, uint8_t *p, BoundingBox *b1, Boun
 		}
 		ret = 1;
 		if ((_al & 8) != 0) {
-			if (_al & 2) {
-				_al = p[3];
-			} else {
-				_al = -p[3];
-			}
-			int _bl, i;
-			if (_al < 0) {
-				i = (-_al) * 6;
-				updateScreenMaskLar(&_lar1_maskData[i], 0);
-				_bl = 5;
-			} else {
-				i = _al * 6;
-				updateScreenMaskLar(&_lar1_maskData[i], 1);
-				_bl = 2;
-			}
-			LvlObject *o = findLvlObject2(0, _lar1_maskData[i + 5], _lar1_maskData[i + 4]);
-			if (o) {
-				o->objectUpdateType = _bl;
-			}
+			const int mask = (_al & 2) != 0 ? p[3] : -p[3];
+			updateGateMaskLar(mask);
 			return ret;
 		}
 		const uint8_t _cl = (_al >> 5) & 1;
@@ -4630,12 +4626,26 @@ int Game::updateSwitchesLar_toggle(bool flag, uint8_t dataNum, int screenNum, in
 	return ret;
 }
 
+void Game::dumpSwitchesLar(int switchesCount, const uint8_t *switchesData, const BoundingBox *switchesBoundingBox, int gatesCount, const uint8_t *gatesData) {
+	fprintf(stdout, "_mstAndyVarMask 0x%x _mstLevelGatesMask 0x%x\n", _mstAndyVarMask, _mstLevelGatesMask);
+	for (int i = 0; i < gatesCount; ++i) {
+		const uint8_t *p = gatesData + i * 4;
+		fprintf(stdout, "gate %2d: state 0x%02x\n", i, p[0]);
+	}
+	for (int i = 0; i < switchesCount; ++i) {
+		const uint8_t *p = switchesData + i * 4;
+		const BoundingBox *b = &switchesBoundingBox[i];
+		fprintf(stdout, "switch %2d: screen %2d (%3d,%3d,%3d,%3d) flags 0x%02x sprite %2d gate %2d\n", i, p[0], b->x1, b->y1, b->x2, b->y2, p[1], (int8_t)p[2], p[3]);
+	}
+}
+
 void Game::updateScreenMaskLar(uint8_t *p, uint8_t flag) {
 	if (p[1] != flag) {
 		p[1] = flag;
 		const uint8_t screenNum = p[4];
 		uint32_t maskOffset = screenMaskOffset(_res->_screensBasePos[screenNum].u + p[2], _res->_screensBasePos[screenNum].v + p[3]);
 		uint8_t *dst = _screenMaskBuffer + maskOffset;
+		assert(p[0] < 6);
 		const int16_t *src = _lar_screenMaskOffsets[p[0]];
 		const int count = *src++;
 		if (!flag) {
@@ -4650,6 +4660,25 @@ void Game::updateScreenMaskLar(uint8_t *p, uint8_t flag) {
 				dst += offset;
 				*dst |= 8;
 			}
+		}
+	}
+}
+
+void Game::updateGateMaskLar(int num) {
+	if (num != 0) {
+		int offset, type;
+		if (num < 0) {
+			offset = -num * 6;
+			updateScreenMaskLar(_lar1_maskData + offset, 0);
+			type = 5;
+		} else {
+			offset = num * 6;
+			updateScreenMaskLar(_lar1_maskData + offset, 1);
+			type = 2;
+		}
+		LvlObject *o = findLvlObject2(0, _lar1_maskData[offset + 5], _lar1_maskData[offset + 4]);
+		if (o) {
+			o->objectUpdateType = type;
 		}
 	}
 }

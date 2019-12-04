@@ -3,8 +3,8 @@
  * Copyright (C) 2009-2011 Gregory Montoir (cyx@users.sourceforge.net)
  */
 
-#ifndef SYSTEMSTUB_H__
-#define SYSTEMSTUB_H__
+#ifndef SYSTEM_H__
+#define SYSTEM_H__
 
 #include "intern.h"
 
@@ -65,6 +65,6 @@ struct System {
 	virtual AudioCallback setAudioCallback(AudioCallback callback) = 0;
 };
 
-extern System *System_SDL2_create();
+extern System *const g_system;
 
-#endif // SYSTEMSTUB_H__
+#endif // SYSTEM_H__

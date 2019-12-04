@@ -33,8 +33,8 @@ static void closePaf(FileSystem *fs, File *f) {
 	}
 }
 
-PafPlayer::PafPlayer(System *system, FileSystem *fs)
-	: _skipCutscenes(false), _system(system), _fs(fs) {
+PafPlayer::PafPlayer(FileSystem *fs)
+	: _skipCutscenes(false), _fs(fs) {
 	if (!openPaf(_fs, &_file)) {
 		_skipCutscenes = true;
 	}
@@ -403,7 +403,7 @@ void PafPlayer::decodeAudioFrame(const uint8_t *src, uint32_t offset, uint32_t s
 			}
 			sq->next = 0;
 
-			_system->lockAudio();
+			g_system->lockAudio();
 			if (_audioQueueTail) {
 				_audioQueueTail->next = sq;
 			} else {
@@ -411,7 +411,7 @@ void PafPlayer::decodeAudioFrame(const uint8_t *src, uint32_t offset, uint32_t s
 				_audioQueue = sq;
 			}
 			_audioQueueTail = sq;
-			_system->unlockAudio();
+			g_system->unlockAudio();
 		}
 	}
 	_audioBufferOffsetRd += count * kAudioStrideSize;
@@ -460,9 +460,9 @@ void PafPlayer::mainLoop() {
 	AudioCallback audioCb;
 	audioCb.proc = mixAudio;
 	audioCb.userdata = this;
-	AudioCallback prevAudioCb = _system->setAudioCallback(audioCb);
+	AudioCallback prevAudioCb = g_system->setAudioCallback(audioCb);
 
-	uint32_t frameTime = _system->getTimeStamp() + 1000 / kFramesPerSec;
+	uint32_t frameTime = g_system->getTimeStamp() + 1000 / kFramesPerSec;
 
 	for (int i = 0; i < (int)_pafHdr.framesCount; ++i) {
 		// read buffering blocks
@@ -483,17 +483,17 @@ void PafPlayer::mainLoop() {
 		}
 		// decode video data
 		decodeVideoFrame(_demuxVideoFrameBlocks + _pafHdr.framesOffsetTable[i]);
-		_system->setPalette(_paletteBuffer, 256, 6);
-		_system->copyRect(0, 0, kVideoWidth, kVideoHeight, _pageBuffers[_currentPageBuffer], kVideoWidth);
-		_system->updateScreen(false);
-		_system->processEvents();
-		if (_system->inp.quit || _system->inp.keyPressed(SYS_INP_ESC)) {
+		g_system->setPalette(_paletteBuffer, 256, 6);
+		g_system->copyRect(0, 0, kVideoWidth, kVideoHeight, _pageBuffers[_currentPageBuffer], kVideoWidth);
+		g_system->updateScreen(false);
+		g_system->processEvents();
+		if (g_system->inp.quit || g_system->inp.keyPressed(SYS_INP_ESC)) {
 			break;
 		}
 
-		const int delay = MAX(10, int(frameTime - _system->getTimeStamp()));
-		_system->sleep(delay);
-		frameTime = _system->getTimeStamp() + 1000 / kFramesPerSec;
+		const int delay = MAX(10, int(frameTime - g_system->getTimeStamp()));
+		g_system->sleep(delay);
+		frameTime = g_system->getTimeStamp() + 1000 / kFramesPerSec;
 
 		// set next decoding video page
 		++_currentPageBuffer;
@@ -501,5 +501,5 @@ void PafPlayer::mainLoop() {
 	}
 	unload();
 	// restore audio callback
-	_system->setAudioCallback(prevAudioCb);
+	g_system->setAudioCallback(prevAudioCb);
 }
