@@ -1,0 +1,144 @@
+# This file lists released versions of 'Heart of Darkness' from Amazing Studio
+- name: Heart of Darkness French (Win32)
+  files:
+  - dark_hod.lvl: e7c188e5c47632d512d96d9da89fc8c060528d45
+  - dark_hod.mst: 6c2d93b2e31c299215d0fdf05ac1e8e8e95e9042
+  - dark_hod.sss: 8d5b19842e551b8ec73bda411c210cc96e08569a
+  - fort_hod.lvl: 82456ed6e29780b5b8031a67ba3dddb8da813c19
+  - fort_hod.mst: ce55095902ade9f1d8a198f271d0946d6228b90d
+  - fort_hod.sss: 6ff572b553d93040c9cad74891db05b2cc8267c6
+  - hod.paf: 6df823a778ed0df275217692fd814a7408b725cb
+  - hodwin32.exe: 02ae85c179f175c5a42fadb22ba9edaf4f62be14
+    securom: true
+    version_info:
+    - Comments: Release Candidate 0
+    - CompanyName: Amazing Studio - 9 rue d' Enhgien - 75010 Paris FRANCE - Email: hod@amazingstudio.com
+    - FileDescription: Heart Of Darkness
+    - FileVersion: 1, 1, 0, 0
+    - InternalName: Heart Of Darkness
+    - LegalCopyright: (c) 1998 by Amazing Studio & Infogrames
+    - LegalTrademarks: by Amazing Studio - All rights reserved
+    - OriginalFilename: Heart Of Darkness
+    - PrivateBuild: HEARTMM5511
+    - ProductName: Heart Of Darkness  - Windows 95 / 98 & NT - DirectX 3.x or greater
+    - ProductVersion: 1, 1, 0, 0
+    - SpecialBuild: VC5.0 Sp3
+  - isld_hod.lvl: f78e9316f2187c0ca9e42abe8a2242b3d3e6feaf
+  - isld_hod.mst: 448e5dd5bbe59621279562d8695c9a864cb4c286
+  - isld_hod.sss: 61c5da6dfcf80684c56baebddb04125ca0c1f209
+  - lar1_hod.lvl: 84f7b33a9b57f2afa68063e0128512991f86dfa0
+  - lar1_hod.mst: 9db53a4a75327eeca45ffa5b761a9f04af5e5204
+  - lar1_hod.sss: 72667991fde3caf36978da1fa929695de80abe4b
+  - lar2_hod.lvl: 999b2548490f586f955c9f5c6db95f88d49102f3
+  - lar2_hod.mst: 333ea4e6be6ca9aad735fafe59177546aab41c4e
+  - lar2_hod.sss: c5c655b718ead1d2eb460a058df7eb3b795dea9e
+  - lava_hod.lvl: 2921eb2f78354e79c1257ef55543bb1a1492e914
+  - lava_hod.mst: c05ce42c0abdbb2dbfc109cbb4ea7eee1937445d
+  - lava_hod.sss: 8fc8d2c86f67e13ca840d604c603249b20723f85
+  - pwr1_hod.lvl: cd6489e11914770d95034aa6afaa2fc67f035ce8
+  - pwr1_hod.mst: f821e5686ae27b2ed5000ea4b38a464ecebe44a7
+  - pwr1_hod.sss: cbb39e1bfd24dcbd5bf65f9e0b92faaa9b6b02a6
+  - pwr2_hod.lvl: 7263ecf8d51d45c2c62dc11701eac03b67738fd8
+  - pwr2_hod.mst: 132b29e758a28529009e979ef31a29a42d0a5c4b
+  - pwr2_hod.sss: 24342241b4353777cc22696be8a684d635f9c809
+  - rock_hod.lvl: cdb3d7ad1ae13f2234380f79bc8ec57e1e505cef
+  - rock_hod.mst: 5b49637348f6c6a2737a64cacf01f9bcef8e83f6
+  - rock_hod.sss: 55c841f6c091c2ae68f0636c075c66405d00cc6a
+  - setup.dat: 1d476d896cafd3d4af00b15eb2eb695a804a0662
+- name: Heart of Darkness Demo V1.2 (Win32)
+  files:
+  - hod_demo.paf: 50a0942256b17ed26f3b0f59f4cf7570a6eb8688
+  - hodwin32.exe: e305dbfc4d6c568fe2cb074cf61e0fb3a489c7ed
+    securom: false
+    version_info:
+    - Comments: Release 1.2
+    - CompanyName: Amazing Studio - 9 rue d' Enhgien - 75010 Paris FRANCE - Email: hod@amazingstudio.com
+    - FileDescription: Heart Of Darkness
+    - FileVersion: 1, 2, 0, 0
+    - InternalName: Heart Of Darkness
+    - LegalCopyright: (c) 1998 by Amazing Studio & Infogrames
+    - LegalTrademarks: by Amazing Studio - All rights reserved
+    - OriginalFilename: Heart Of Darkness
+    - PrivateBuild: HEARTMM5511
+    - ProductName: Heart Of Darkness  - Windows 95 / 98 & NT - DirectX 3.x or greater
+    - ProductVersion: 1, 2, 0, 0
+    - SpecialBuild: VCpp 6.0
+  - rock_hod.lvl: 9fddeac91b8de1cbbce35fa3330f674cb5e0e7c7
+  - rock_hod.mst: e7fbfcde10c08aa64ae1398fc95257891863790b
+  - rock_hod.sss: 982323a992c998e7c741d4d8fcaba11998d8072c
+  - setup.dat: 24bbb82fe25c9c52c5a2c471db3646acd0dd4f1f
+- name: Heart of Darkness Mini-Game V1.3 Kellogg's (Win32)
+  files:
+  - hod_demo.paf: 2229d9743c1a4064561ff1a1530d6ba79ebab5a7
+  - hod_demo.paf: e60599c35283d24a1938ba0c09963c6bf756ab4d
+  - hodwin32.exe: af2837fdb99d8a35ec6b8732bc84e8e162ab7cfd
+    securom: false
+    version_info:
+    - Comments: Release 1.3
+    - CompanyName: Amazing Studio - 9 rue d' Enhgien - 75010 Paris FRANCE - Email: hod@amazingstudio.com
+    - FileDescription: Heart Of Darkness
+    - FileVersion: 1, 3, 0, 0
+    - InternalName: Heart Of Darkness
+    - LegalCopyright: (c) 1998 by Amazing Studio & Infogrames
+    - LegalTrademarks: by Amazing Studio - All rights reserved
+    - OriginalFilename: Heart Of Darkness
+    - PrivateBuild: HEARTMM5511
+    - ProductName: Heart Of Darkness  - Windows 95 / 98 & NT - DirectX 3.x or greater
+    - ProductVersion: 1, 3, 0, 0
+    - SpecialBuild: VCpp 6.0
+  - rock_hod.lvl: 9fddeac91b8de1cbbce35fa3330f674cb5e0e7c7
+  - rock_hod.mst: 24dee01526c06b6f003b2c8e22e4d5787df333c8
+  - rock_hod.sss: ec683718d26bc1e0b4a254215621dd6c6c3e60b0
+  - setup.dat: 957567bcc4ff5650d85fe543d34ff2f773bb8aca
+- name: Heart of Darkness Coca Cola Edition (Win32)
+  files:
+  - fort_hod.lvl: d08d11b148786ef4b7391ac7c877186ec4721980
+  - fort_hod.mst: 590a577830747d2ca1bee3fe3c5212e2a30e8dfa
+  - fort_hod.sss: 93120414e8077a3a205092a99001457d221e0a11
+  - hod_demo2.paf: a31d6df563f155147759de4730b7bcb4d5cb99c0
+  - hod_res.dll: 0b85a0b96f14d0da7becb76fb7cff03e4f865165
+  - hodwin32.exe: 6d1866ddd6310607afe9694b564d2fb81878183a
+    securom: false
+    version_info:
+    - Comments: Release 1.4.2
+    - CompanyName: Amazing Studio - 9 rue d' Enhgien - 75010 Paris FRANCE - Email:webmaster@amazingstudio.com
+    - FileDescription: Heart Of Darkness
+    - FileVersion: 1, 4, 2, 0
+    - InternalName: Heart Of Darkness
+    - LegalCopyright: (c) 1999 by Amazing Studio & Infogrames
+    - LegalTrademarks: by Amazing Studio - All rights reserved
+    - OriginalFilename: Heart Of Darkness
+    - PrivateBuild: HEARTMMCOCA
+    - ProductName: Heart Of Darkness  - Windows 95 / 98 & NT - DirectX 3.x or greater
+    - ProductVersion: 1, 4, 2, 0
+    - SpecialBuild: VCpp 6.0 sp3
+  - rock_hod.lvl: 9fddeac91b8de1cbbce35fa3330f674cb5e0e7c7
+  - rock_hod.mst: 24dee01526c06b6f003b2c8e22e4d5787df333c8
+  - rock_hod.sss: ec683718d26bc1e0b4a254215621dd6c6c3e60b0
+  - setup.dat: e6d1ae87b991d3cf623b8ec9fb33cdd2a3d4a1b4
+- name: Heart of Darkness Demo (PSX) SLED_013.51
+  files:
+  - rock_hod.lvl: 9cbc3bad9efe5f21f66c33d9872e29a1bd7b4c0c
+  - rock_hod.mst: e7fbfcde10c08aa64ae1398fc95257891863790b
+  - setup.dax: e091dddd74dc00ccf57a48dc8495ed95cde6a42d
+- name: Heart of Darkness (PSX) SLUS_006.96
+  files:
+  - dark_hod.lvl: f6482575f1d4d2b6aa8910c709681a714edfba6b
+  - dark_hod.mst: a97ac13edde17fd33cb06e9907139949c8b79cdb
+  - fort_hod.lvl: e94a21bc4f779dba658ef5ab45f1ad15880913d8
+  - fort_hod.mst: f7423c3d277650ac36378f09f59034cec28b6b34
+  - isld_hod.lvl: c0fbd02deea136d57b60bc8a7c3df69741491335
+  - isld_hod.mst: 9ff92346444a66833eb2f8a1b3853ad788d1777b
+  - lar1_hod.lvl: 575dde976affeedfa5f1637a34d5efdda3218778
+  - lar1_hod.mst: b36ec9ca6122edd72a52543afad4c8bcd23ca03a
+  - lar2_hod.lvl: dc907525ef0859be25dca20746e43edaf06b073b
+  - lar2_hod.mst: 266edb49e8846fc8ae883dfe5ca269e0b7651e82
+  - lava_hod.lvl: 8412a41febf1ca5d8140a7344f758c8cad924951
+  - lava_hod.mst: e4584f4c893a6977e01b3f4f3b2cdbd23a96bbac
+  - pwr1_hod.lvl: f6c60f57de3ec1429286531451a6ca957c8f2cab
+  - pwr1_hod.mst: 2383746cee299ef57b49db5367dfadb2a6a7bbe8
+  - pwr2_hod.lvl: 46c30e728b28f0bb2c976832220cd6d3d4050b0e
+  - pwr2_hod.mst: c82e435630be6799f469a460f5fc982a998854da
+  - rock_hod.lvl: 9cbc3bad9efe5f21f66c33d9872e29a1bd7b4c0c
+  - rock_hod.mst: e7fbfcde10c08aa64ae1398fc95257891863790b
+  - setup.dax: 9d5708b6dedce70a17c76c10ea16f02121826aab
