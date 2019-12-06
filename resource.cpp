@@ -1168,8 +1168,12 @@ void Resource::loadMstData(File *fp) {
 		_mstWalkCodeData[i].codeDataCount = fp->readUint32();
 		_mstWalkCodeData[i].codeData = (uint32_t *)malloc(_mstWalkCodeData[i].codeDataCount * sizeof(uint32_t));
 		fp->skipUint32();
-		_mstWalkCodeData[i].dataCount = fp->readUint32();
-		_mstWalkCodeData[i].data = (uint8_t *)malloc(_mstWalkCodeData[i].dataCount);
+		_mstWalkCodeData[i].indexDataCount = fp->readUint32();
+		if (_mstWalkCodeData[i].indexDataCount != 0) {
+			_mstWalkCodeData[i].indexData = (uint8_t *)malloc(_mstWalkCodeData[i].indexDataCount);
+		} else {
+			_mstWalkCodeData[i].indexData = 0;
+		}
 		bytesRead += 16;
 	}
 	for (int i = 0; i < _mstHdr.walkCodeDataCount; ++i) {
@@ -1177,7 +1181,9 @@ void Resource::loadMstData(File *fp) {
 			_mstWalkCodeData[i].codeData[j] = fp->readUint32();
 			bytesRead += 4;
 		}
-		bytesRead += readBytesAlign(fp, _mstWalkCodeData[i].data, _mstWalkCodeData[i].dataCount);
+		if (_mstWalkCodeData[i].indexDataCount != 0) {
+			bytesRead += readBytesAlign(fp, _mstWalkCodeData[i].indexData, _mstWalkCodeData[i].indexDataCount);
+		}
 	}
 
 	_mstMovingBoundsIndexData.allocate(_mstHdr.movingBoundsIndexDataCount);
@@ -1240,7 +1246,11 @@ void Resource::loadMstData(File *fp) {
 		_mstBehaviorIndexData[i].behavior = (uint32_t *)malloc(_mstBehaviorIndexData[i].count1 * sizeof(uint32_t));
 		fp->skipUint32();
 		_mstBehaviorIndexData[i].dataCount = fp->readUint32();
-		_mstBehaviorIndexData[i].data = (uint8_t *)malloc(_mstBehaviorIndexData[i].dataCount);
+		if (_mstBehaviorIndexData[i].dataCount != 0) {
+			_mstBehaviorIndexData[i].data = (uint8_t *)malloc(_mstBehaviorIndexData[i].dataCount);
+		} else {
+			_mstBehaviorIndexData[i].data = 0;
+		}
 		bytesRead += 16;
 	}
 	for (int i = 0; i < _mstHdr.behaviorIndexDataCount; ++i) {
@@ -1248,7 +1258,9 @@ void Resource::loadMstData(File *fp) {
 			_mstBehaviorIndexData[i].behavior[j] = fp->readUint32();
 			bytesRead += 4;
 		}
-		bytesRead += readBytesAlign(fp, _mstBehaviorIndexData[i].data, _mstBehaviorIndexData[i].dataCount);
+		if (_mstBehaviorIndexData[i].dataCount != 0) {
+			bytesRead += readBytesAlign(fp, _mstBehaviorIndexData[i].data, _mstBehaviorIndexData[i].dataCount);
+		}
 	}
 
 	_mstMonsterActionIndexData.allocate(_mstHdr.monsterActionIndexDataCount);
@@ -1258,7 +1270,11 @@ void Resource::loadMstData(File *fp) {
 		_mstMonsterActionIndexData[i].indexUnk48 = (uint32_t *)malloc(_mstMonsterActionIndexData[i].count1 * sizeof(uint32_t));
 		fp->skipUint32();
 		_mstMonsterActionIndexData[i].dataCount = fp->readUint32();
-		_mstMonsterActionIndexData[i].data = (uint8_t *)malloc(_mstMonsterActionIndexData[i].dataCount);
+		if (_mstMonsterActionIndexData[i].dataCount != 0) {
+			_mstMonsterActionIndexData[i].data = (uint8_t *)malloc(_mstMonsterActionIndexData[i].dataCount);
+		} else {
+			_mstMonsterActionIndexData[i].data = 0;
+		}
 		bytesRead += 16;
 	}
 	for (int i = 0; i < _mstHdr.monsterActionIndexDataCount; ++i) {
@@ -1266,7 +1282,9 @@ void Resource::loadMstData(File *fp) {
 			_mstMonsterActionIndexData[i].indexUnk48[j] = fp->readUint32();
 			bytesRead += 4;
 		}
-		bytesRead += readBytesAlign(fp, _mstMonsterActionIndexData[i].data, _mstMonsterActionIndexData[i].dataCount);
+		if (_mstMonsterActionIndexData[i].dataCount != 0) {
+			bytesRead += readBytesAlign(fp, _mstMonsterActionIndexData[i].data, _mstMonsterActionIndexData[i].dataCount);
+		}
 	}
 
 	_mstWalkPathData.allocate(_mstHdr.walkPathDataCount);
@@ -1304,8 +1322,13 @@ void Resource::loadMstData(File *fp) {
 			_mstWalkPathData[i].data[j].neighborWalkNode[2] = READ_LE_UINT32(data + 84); // sizeof == 104
 			_mstWalkPathData[i].data[j].neighborWalkNode[3] = READ_LE_UINT32(data + 88); // sizeof == 104
 			_mstWalkPathData[i].data[j].nextWalkNode = READ_LE_UINT32(data + 92); // sizeof == 104
-			_mstWalkPathData[i].data[j].unk60[0] = (uint8_t *)malloc(count);
-			_mstWalkPathData[i].data[j].unk60[1] = (uint8_t *)malloc(count);
+			if (count != 0) {
+				_mstWalkPathData[i].data[j].unk60[0] = (uint8_t *)malloc(count);
+				_mstWalkPathData[i].data[j].unk60[1] = (uint8_t *)malloc(count);
+			} else {
+				_mstWalkPathData[i].data[j].unk60[0] = 0;
+				_mstWalkPathData[i].data[j].unk60[1] = 0;
+			}
 		}
 		_mstWalkPathData[i].walkNodeData = (uint32_t *)malloc(_mstHdr.screensCount * sizeof(uint32_t));
 		for (int j = 0; j < _mstHdr.screensCount; ++j) {
@@ -1447,7 +1470,7 @@ void Resource::loadMstData(File *fp) {
 		fp->skipUint32();
 		_mstMovingBoundsData[i].count1  = fp->readUint32();
 		fp->skipUint32();
-		_mstMovingBoundsData[i].count2  = fp->readUint32();
+		_mstMovingBoundsData[i].indexDataCount = fp->readUint32();
 		_mstMovingBoundsData[i].unk14   = fp->readByte();
 		_mstMovingBoundsData[i].unk15   = fp->readByte();
 		_mstMovingBoundsData[i].unk16   = fp->readByte();
@@ -1474,9 +1497,11 @@ void Resource::loadMstData(File *fp) {
 			_mstMovingBoundsData[i].data1[j].offsetMonsterInfo = start * kMonsterInfoDataSize + num * 28;
 			bytesRead += 16;
 		}
-		_mstMovingBoundsData[i].data2 = (uint8_t *)malloc(_mstMovingBoundsData[i].count2);
-		fp->read(_mstMovingBoundsData[i].data2, _mstMovingBoundsData[i].count2);
-		bytesRead += _mstMovingBoundsData[i].count2;
+		if (_mstMovingBoundsData[i].indexDataCount != 0) {
+			_mstMovingBoundsData[i].indexData = (uint8_t *)malloc(_mstMovingBoundsData[i].indexDataCount);
+			fp->read(_mstMovingBoundsData[i].indexData, _mstMovingBoundsData[i].indexDataCount);
+			bytesRead += _mstMovingBoundsData[i].indexDataCount;
+		}
 	}
 
 	_mstShootData.allocate(_mstHdr.shootDataCount);
@@ -1654,8 +1679,8 @@ void Resource::unloadMstData() {
 	for (int i = 0; i < _mstHdr.walkCodeDataCount; ++i) {
 		free(_mstWalkCodeData[i].codeData);
 		_mstWalkCodeData[i].codeData = 0;
-		free(_mstWalkCodeData[i].data);
-		_mstWalkCodeData[i].data = 0;
+		free(_mstWalkCodeData[i].indexData);
+		_mstWalkCodeData[i].indexData = 0;
 	}
 	for (int i = 0; i < _mstHdr.behaviorIndexDataCount; ++i) {
 		free(_mstBehaviorIndexData[i].behavior);
@@ -1701,8 +1726,8 @@ void Resource::unloadMstData() {
 	for (int i = 0; i < _mstHdr.movingBoundsDataCount; ++i) {
 		free(_mstMovingBoundsData[i].data1);
 		_mstMovingBoundsData[i].data1 = 0;
-		free(_mstMovingBoundsData[i].data2);
-		_mstMovingBoundsData[i].data2 = 0;
+		free(_mstMovingBoundsData[i].indexData);
+		_mstMovingBoundsData[i].indexData = 0;
 	}
 	for (int i = 0; i < _mstHdr.shootDataCount; ++i) {
 		free(_mstShootData[i].data);

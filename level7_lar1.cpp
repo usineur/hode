@@ -316,8 +316,8 @@ void Level_lar1::postScreenUpdate_lar1_screen14() {
 					if (!_paf->_skipCutscenes) {
 						_paf->play(11);
 						_paf->unload(11);
-						_video->clearPalette();
 					}
+					_video->clearPalette();
 					_g->restartLevel();
 				}
 			} else {
@@ -413,8 +413,8 @@ void Level_lar1::postScreenUpdate_lar1_screen19() {
 				if (!_paf->_skipCutscenes) {
 					_paf->play(13);
 					_paf->unload(13);
-					_video->clearPalette();
 				}
+				_video->clearPalette();
 				++_screenCounterTable[19]; // bugfix: conditioned with _pafSkipCutscenes
 				_g->updateScreen(_andyObject->screenNum);
 				Game::_lar1_maskData[12 * 6 + 1] = 0;

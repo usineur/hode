@@ -4665,21 +4665,19 @@ void Game::updateScreenMaskLar(uint8_t *p, uint8_t flag) {
 }
 
 void Game::updateGateMaskLar(int num) {
-	if (num != 0) {
-		int offset, type;
-		if (num < 0) {
-			offset = -num * 6;
-			updateScreenMaskLar(_lar1_maskData + offset, 0);
-			type = 5;
-		} else {
-			offset = num * 6;
-			updateScreenMaskLar(_lar1_maskData + offset, 1);
-			type = 2;
-		}
-		LvlObject *o = findLvlObject2(0, _lar1_maskData[offset + 5], _lar1_maskData[offset + 4]);
-		if (o) {
-			o->objectUpdateType = type;
-		}
+	int offset, type;
+	if (num < 0) {
+		offset = -num * 6;
+		updateScreenMaskLar(_lar1_maskData + offset, 0);
+		type = 5;
+	} else {
+		offset = num * 6;
+		updateScreenMaskLar(_lar1_maskData + offset, 1);
+		type = 2;
+	}
+	LvlObject *o = findLvlObject2(0, _lar1_maskData[offset + 5], _lar1_maskData[offset + 4]);
+	if (o) {
+		o->objectUpdateType = type;
 	}
 }
 
