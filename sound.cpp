@@ -7,7 +7,7 @@
 enum {
 	kFlagPlaying = 1 << 0,
 	kFlagPaused  = 1 << 1, // no PCM
-	kFlagNoCode  = 1 << 2, // no bytecode
+	kFlagNoCode  = 1 << 2  // no bytecode
 };
 
 static const bool kLimitSounds = false; // limit the number of active playing sounds

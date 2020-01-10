@@ -152,7 +152,7 @@ void Resource::loadSetupDat() {
 		_datHdr.levelCheckpointsCount[i] = _datFile->readUint32();
 	}
 	_datHdr.yesNoQuitImage   = _datFile->readUint32();
-	_datFile->readUint32(); // 0x44
+	_datHdr.soundDataSize    = _datFile->readUint32();
 	_datHdr.loadingImageSize = _datFile->readUint32();
 	const int hintsCount = (_datHdr.version == 11) ? 46 : 20;
 	for (int i = 0; i < hintsCount; ++i) {
@@ -194,7 +194,6 @@ void Resource::loadSetupDat() {
 	assert(_datHdr.yesNoQuitImage == hintsCount - 3);
 	_menuBuffersOffset = _datHdr.hintsImageOffsetTable[_datHdr.yesNoQuitImage + 2];
 }
-
 
 bool Resource::loadDatHintImage(int num, uint8_t *dst, uint8_t *pal) {
 	if (!_isPsx) {
@@ -347,37 +346,44 @@ static uint32_t resFixPointersLevelData0x2988(uint8_t *src, uint8_t *ptr, LvlObj
 
 	assert(src == base + kLvlAnimHdrOffset);
 	dat->animsInfoData = base;
-#ifdef __BYTE_ORDER
-	if (__BYTE_ORDER == __BIG_ENDIAN) {
-		for (int i = 0; i < dat->hotspotsCount; ++i) {
-			LvlAnimHeader *ah = ((LvlAnimHeader *)(base + kLvlAnimHdrOffset)) + i;
-			ah->unk0 = le16toh(ah->unk0);
-			ah->seqOffset = le32toh(ah->seqOffset);
-			if (ah->seqOffset != 0) {
-				for (int seq = 0; seq < ah->seqCount; ++seq) {
-					LvlAnimSeqHeader *ash = ((LvlAnimSeqHeader *)(base + ah->seqOffset)) + seq;
-					ash->firstFrame = le16toh(ash->firstFrame);
-					ash->unk2 = le16toh(ash->unk2);
-					ash->sound = le16toh(ash->sound);
-					ash->flags0 = le16toh(ash->flags0);
-					ash->flags1 = le16toh(ash->flags1);
-					ash->unkE = le16toh(ash->unkE);
-					ash->offset = le32toh(ash->offset);
-					if (ash->offset != 0) {
-						LvlAnimSeqFrameHeader *asfh = (LvlAnimSeqFrameHeader *)(base + ash->offset);
-						asfh->move = le16toh(asfh->move);
-						asfh->anim = le16toh(asfh->anim);
-					}
-				}
-			}
-		}
-	}
-#endif
 	dat->refCount = 0xFF;
 	dat->framesData = (framesDataOffset == 0) ? 0 : base + framesDataOffset;
 	dat->hotspotsData = (hotspotsDataOffset == 0) ? 0 : base + hotspotsDataOffset;
 	dat->movesData = (movesDataOffset == 0) ? 0 : base + movesDataOffset;
 	dat->coordsData = (coordsDataOffset == 0) ? 0 : base + coordsDataOffset;
+	if (kByteSwapData) {
+		for (int i = 0; i < dat->hotspotsCount; ++i) {
+			LvlAnimHeader *ah = ((LvlAnimHeader *)(base + kLvlAnimHdrOffset)) + i;
+			ah->unk0 = le16toh(ah->unk0);
+			ah->seqOffset = le32toh(ah->seqOffset);
+			if (ah->seqOffset == 0) {
+				continue;
+			}
+			for (int j = 0; j < ah->seqCount; ++j) {
+				LvlAnimSeqHeader *ash = ((LvlAnimSeqHeader *)(base + ah->seqOffset)) + j;
+				ash->firstFrame = le16toh(ash->firstFrame);
+				ash->unk2 = le16toh(ash->unk2);
+				ash->sound = le16toh(ash->sound);
+				ash->flags0 = le16toh(ash->flags0);
+				ash->flags1 = le16toh(ash->flags1);
+				ash->unkE = le16toh(ash->unkE);
+				ash->offset = le32toh(ash->offset);
+				if (ash->offset == 0) {
+					continue;
+				}
+				for (int k = 0; k < ash->count; ++k) {
+					LvlAnimSeqFrameHeader *asfh = ((LvlAnimSeqFrameHeader *)(base + ash->offset)) + k;
+					asfh->move = le16toh(asfh->move);
+					asfh->anim = le16toh(asfh->anim);
+				}
+			}
+		}
+		for (int i = 0; i < dat->movesCount; ++i) {
+			LvlSprMoveData *smd = ((LvlSprMoveData *)dat->movesData) + i;
+			smd->op3 = le16toh(smd->op3);
+			smd->op4 = le16toh(smd->op4);
+		}
+	}
 
 	dat->framesOffsetsTable = ptr;
 	if (dat->coordsData) {
@@ -963,7 +969,12 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 	if (bufferSize != bytesRead) {
 		error("Unexpected number of bytes read %d (%d)", bytesRead, bufferSize);
 	}
-	// preload PCM (_sssHdr.preloadPcmCount)
+	// preload PCM (_sssHdr.preloadPcmCount or setup.dat)
+	if (fp == _datFile) {
+		for (int i = 0; i < _sssHdr.pcmCount; ++i) {
+			loadSssPcm(fp, &_sssPcmTable[i]);
+		}
+	}
 	for (int i = 0; i < _sssHdr.banksDataCount; ++i) {
 		uint32_t mask = 1;
 		_sssDataUnk6[i].mask = 0;
@@ -1042,7 +1053,9 @@ void Resource::loadSssPcm(File *fp, SssPcm *pcm) {
 			return;
 		}
 		pcm->ptr = p;
-		fp->seek(pcm->offset, SEEK_SET);
+		if (fp != _datFile || pcm == &_sssPcmTable[0]) {
+			fp->seek(pcm->offset, SEEK_SET);
+		}
 		for (int i = 0; i < pcm->strideCount; ++i) {
 			uint8_t samples[256 * sizeof(int16_t)];
 			fp->read(samples, sizeof(samples));
@@ -1501,6 +1514,8 @@ void Resource::loadMstData(File *fp) {
 			_mstMovingBoundsData[i].indexData = (uint8_t *)malloc(_mstMovingBoundsData[i].indexDataCount);
 			fp->read(_mstMovingBoundsData[i].indexData, _mstMovingBoundsData[i].indexDataCount);
 			bytesRead += _mstMovingBoundsData[i].indexDataCount;
+		} else {
+			_mstMovingBoundsData[i].indexData = 0;
 		}
 	}
 

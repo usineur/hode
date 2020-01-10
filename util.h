@@ -15,7 +15,7 @@ enum {
 	kDebug_SOUND    = 1 << 3,
 	kDebug_PAF      = 1 << 4,
 	kDebug_MONSTER  = 1 << 5,
-	kDebug_SWITCHES = 1 << 6, // 'lar1' and 'lar2' levels
+	kDebug_SWITCHES = 1 << 6  // 'lar1' and 'lar2' levels
 };
 
 extern int g_debugMask;

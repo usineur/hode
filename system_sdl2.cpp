@@ -18,7 +18,6 @@ static bool axis[4]= { false, false, false, false };
 
 static int _scalerMultiplier = 3;
 static const Scaler *_scaler = &scaler_xbr;
-static const float _gamma = 1.f;
 
 static const int _pixelFormat = SDL_PIXELFORMAT_RGB888;
 
@@ -40,7 +39,7 @@ struct System_SDL2 : System {
 	enum {
 		kJoystickCommitValue = 3200,
 		kKeyMappingsSize = 20,
-		kAudioHz = 22050,
+		kAudioHz = 22050
 	};
 
 	uint8_t *_offscreenLut;
@@ -180,6 +179,7 @@ void System_SDL2::destroy() {
 		SDL_JoystickClose(_joystick);
 		_joystick = 0;
 	}
+	SDL_Quit();
 }
 
 template<bool vertical>

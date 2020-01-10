@@ -20,6 +20,7 @@ struct DatHdr {
 	uint32_t levelsCount; // 0x1C
 	uint32_t levelCheckpointsCount[8]; // 0x20..0x3C
 	int yesNoQuitImage; // 0x40
+	int soundDataSize; // 0x44
 	int loadingImageSize; // 0x48
 	uint32_t hintsImageOffsetTable[46];
 	uint32_t hintsImageSizeTable[46];
