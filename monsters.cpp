@@ -437,7 +437,7 @@ void Game::mstBoundingBoxClear(MonsterObject1 *m, int dir) {
 	uint8_t num = m->bboxNum[dir];
 	if (num < _mstBoundingBoxesCount && _mstBoundingBoxesTable[num].monster1Index == m->monster1Index) {
 		_mstBoundingBoxesTable[num].monster1Index = 0xFF;
-		int i = num + 1;
+		int i = num;
 		for (; i < _mstBoundingBoxesCount; ++i) {
 			if (_mstBoundingBoxesTable[i].monster1Index != 0xFF) {
 				break;
@@ -492,14 +492,14 @@ int Game::mstBoundingBoxUpdate(int num, int monster1Index, int x1, int y1, int x
 	return num;
 }
 
-int Game::mstBoundingBoxCollides2(int num, int x1, int y1, int x2, int y2) const {
+int Game::mstBoundingBoxCollides2(int monster1Index, int x1, int y1, int x2, int y2) const {
 	for (int i = 0; i < _mstBoundingBoxesCount; ++i) {
 		const MstBoundingBox *p = &_mstBoundingBoxesTable[i];
-		if (p->monster1Index == 0xFF || p->monster1Index == num) {
+		if (p->monster1Index == 0xFF || p->monster1Index == monster1Index) {
 			continue;
 		}
-		if (p->monster1Index == 0xFE) {
-			if (_monsterObjects1Table[num].monsterInfos[944] != 15) {
+		if (p->monster1Index == 0xFE) { // Andy
+			if (_monsterObjects1Table[monster1Index].monsterInfos[944] != 15) {
 				continue;
 			}
 		}
@@ -655,7 +655,7 @@ void Game::mstTaskUpdateScreenPosition(Task *t) {
 
 	const uint8_t *ptr = m->monsterInfos;
 	if (ptr[946] & 4) {
-		const uint8_t *ptr1 = ptr + (o->flags0 & 255) * 28; // va
+		const uint8_t *ptr1 = ptr + (o->flags0 & 0xFF) * 28; // va
 		if (ptr1[0xE] != 0) {
 			_mstTemp_x1 = m->xMstPos + (int8_t)ptr1[0xC];
 			_mstTemp_y1 = m->yMstPos + (int8_t)ptr1[0xD];
@@ -1482,8 +1482,8 @@ void Game::mstMonster1MoveTowardsGoal1(MonsterObject1 *m) {
 	const uint8_t *p = m->monsterInfos;
 	const uint32_t indexWalkBox = walkNode->walkBox;
 	const MstWalkBox *m34 = &_res->_mstWalkBoxData[indexWalkBox];
-	const int w = READ_LE_UINT32(p + 904);
-	const int h = READ_LE_UINT32(p + 908);
+	const int w = (int32_t)READ_LE_UINT32(p + 904);
+	const int h = (int32_t)READ_LE_UINT32(p + 908);
 	debug(kDebug_MONSTER, "mstMonster1MoveTowardsGoal1 m %p pos %d,%d [%d,%d,%d,%d]", m, m->xMstPos, m->yMstPos, m34->left, m34->top, m34->right, m34->bottom);
 	if (!rect_contains(m34->left - w, m34->top - h, m34->right + w, m34->bottom + h, m->xMstPos, m->yMstPos)) {
 		mstMonster1UpdateWalkPath(m);
@@ -1542,7 +1542,7 @@ void Game::mstMonster1MoveTowardsGoal1(MonsterObject1 *m) {
 	}
 	MstBehaviorState *behaviorState = m->behaviorState;
 	MstWalkPath *walkPath = &_res->_mstWalkPathData[behaviorState->walkPath];
-	uint8_t _cl = m->bboxNum[2];
+	uint8_t _cl = m->walkBoxNum;
 	if (m->unkBC != _xMstPos1 || m->unkC0 != _yMstPos1) {
 		bool inWalkBox = false;
 		if (_cl < walkPath->count) {
@@ -1576,7 +1576,7 @@ void Game::mstMonster1MoveTowardsGoal1(MonsterObject1 *m) {
 			} else {
 				_cl = _al;
 			}
-			m->bboxNum[2] = _cl;
+			m->walkBoxNum = _cl;
 			m->unkBC = -1;
 			m->unkC0 = -1;
 		}
@@ -1602,14 +1602,12 @@ void Game::mstMonster1MoveTowardsGoal1(MonsterObject1 *m) {
 			const uint8_t *p = m->monsterInfos;
 			const int w = (int32_t)READ_LE_UINT32(p + 904);
 			const int h = (int32_t)READ_LE_UINT32(p + 908);
-			while (_xMstPos1 >= walkNode->coords[1][vf] + w) {
-				if (_xMstPos1 > walkNode->coords[0][vf] - w) {
-					break;
-				}
-				if (_yMstPos1 < walkNode->coords[3][vf] + h) {
-					break;
-				}
-				if (_yMstPos1 > walkNode->coords[2][vf] - h) {
+			while (1) {
+				const int x1 = walkNode->coords[1][vf] + w; // left
+				const int x2 = walkNode->coords[0][vf] - w; // right
+				const int y1 = walkNode->coords[3][vf] + h; // top
+				const int y2 = walkNode->coords[2][vf] - h; // bottom
+				if (!rect_contains(x1, y1, x2, y2, _xMstPos1, _yMstPos1)) {
 					break;
 				}
 				int var1C;
@@ -1628,6 +1626,7 @@ void Game::mstMonster1MoveTowardsGoal1(MonsterObject1 *m) {
 					break;
 				}
 				const uint32_t indexWalkNode = walkNode->neighborWalkNode[var1C];
+				assert(indexWalkNode != kNone && indexWalkNode < walkPath->count);
 				walkNode = &walkPath->data[indexWalkNode];
 				if (walkNode == &walkPath->data[_cl]) {
 					m->targetDirectionMask = 0xFF;
@@ -1742,7 +1741,7 @@ void Game::mstMonster1MoveTowardsGoal2(MonsterObject1 *m) {
 		}
 		const int num = var20 + var8 * 5;
 		const int dirMask = _mstLut3[num];
-		if (_mstLut1[dirMask] == m->bboxNum[3]) {
+		if (_mstLut1[dirMask] == m->unkAB) {
 			continue;
 		}
 		int vc, va;
@@ -1782,8 +1781,8 @@ void Game::mstMonster1MoveTowardsGoal2(MonsterObject1 *m) {
 				continue;
 			}
 		}
-		const int w = READ_LE_UINT32(m->monsterInfos + 904);
-		const int h = READ_LE_UINT32(m->monsterInfos + 908);
+		const int w = (int32_t)READ_LE_UINT32(m->monsterInfos + 904);
+		const int h = (int32_t)READ_LE_UINT32(m->monsterInfos + 908);
 		if (!rect_contains(m34->left - w, m34->top - h, m34->right + w, m34->bottom + h, xPos, yPos)) {
 			const uint32_t indexWalkPath = m->behaviorState->walkPath;
 			MstWalkPath *walkPath = &_res->_mstWalkPathData[indexWalkPath];
@@ -1799,9 +1798,10 @@ void Game::mstMonster1MoveTowardsGoal2(MonsterObject1 *m) {
 		m->targetLevelPos_y = yPos;
 		p = _res->_mstMonsterInfos + m->m49Unk1->offsetMonsterInfo;
 		if (p[0xE] != 0) {
+			bboxIndex = m->monster1Index;
 			const int x1 = m->xMstPos + (int8_t)p[0xC];
-			const int x2 = x1 + p[0xE] - 1;
 			const int y1 = m->yMstPos + (int8_t)p[0xD];
+			const int x2 = x1 + p[0xE] - 1;
 			const int y2 = y1 + p[0xF] - 1;
 			const int r = mstBoundingBoxCollides2(m->monster1Index, x1, y1, x2, y2);
 			if (r != 0) {
@@ -1818,17 +1818,12 @@ void Game::mstMonster1MoveTowardsGoal2(MonsterObject1 *m) {
 		}
 		m->goalDirectionMask = dirMask;
 		if (var20 == 0) {
-			m->bboxNum[3] = 0xFF;
+			m->unkAB = 0xFF;
 		} else {
-			uint8_t n = _mstLut1[dirMask];
-			if (n < 4) {
-				n += 4;
-			} else {
-				n -= 4;
-			}
-			m->bboxNum[3] = n;
+			const uint8_t n = _mstLut1[dirMask];
+			m->unkAB = (n < 4) ? n + 4 : n - 4;
 		}
-		// return; // TODO: re-enable when m->levelBounds_x1/x2/y1/y2 are corrected
+		return;
 	}
 	m->task->flags |= 0x80;
 	m->goalDirectionMask = 0;
@@ -1856,7 +1851,7 @@ int Game::mstTaskStopMonster1(Task *t, MonsterObject1 *m) {
 }
 
 int Game::mstTaskUpdatePositionActionDirection(Task *t, MonsterObject1 *m) {
-	if ((m->monsterInfos[946] & 4) == 0 || (_mstLut1[m->goalDirectionMask] & 1) != 0) {
+	if ((m->monsterInfos[946] & 4) == 0 && (_mstLut1[m->goalDirectionMask] & 1) != 0) {
 		if (_xMstPos2 < m->m49->unk14) {
 			m->goalDirectionMask &= ~kDirectionKeyMaskHorizontal;
 		}
@@ -1915,7 +1910,6 @@ int Game::mstTaskUpdatePositionActionDirection(Task *t, MonsterObject1 *m) {
 				if (m->targetDirectionMask != 0xFF) {
 					_xMstPos2 = 0;
 				}
-
 			}
 		} else {
 			if (_yMstPos2 < m->m49Unk1->unkB) {
@@ -2304,7 +2298,7 @@ int Game::mstUpdateTaskMonsterObject1(Task *t) {
 	MonsterObject1 *m = t->monster1;
 	MonsterObject1 *_mstCurrentMonster1 = m;
 	LvlObject *o = m->o16;
-	const int num = o->flags0 & 255;
+	const int num = o->flags0 & 0xFF;
 	const uint8_t *ptr = m->monsterInfos + num * 28; // vb
 	int8_t a = ptr[6];
 	if (a != 0) {
@@ -2660,7 +2654,7 @@ int Game::mstUpdateTaskMonsterObject1(Task *t) {
 			}
 			if ((m->monsterInfos[946] & 2) == 0) {
 				MstWalkNode *walkPath = m->walkNode;
-				int vf = READ_LE_UINT32(m->monsterInfos + 904);
+				int vf = (int32_t)READ_LE_UINT32(m->monsterInfos + 904);
 				int vb = MAX(m->goalPosBounds_x1, walkPath->coords[1][1] + vf);
 				int va = MIN(m->goalPosBounds_x2, walkPath->coords[0][1] - vf);
 				const uint32_t indexUnk36 = walkPath->movingBoundsIndex2;
@@ -3134,9 +3128,9 @@ int Game::mstTaskSetActionDirection(Task *t, int num, int delay) {
 		} else if ((o->directionKeyMask & kDirectionKeyMaskDown) == 0) {
 			va = 0;
 		}
-		const int x1 = m->xMstPos + (int8_t)p[0xC]; // vf
+		const int x1 = m->xMstPos + (int8_t)p[0xC];
+		const int y1 = m->yMstPos + (int8_t)p[0xD];
 		const int x2 = x1 + p[0xE] - 1;
-		const int y1 = m->yMstPos + (int8_t)p[0xD]; // ve
 		const int y2 = y1 + p[0xF] - 1;
 		if ((var8 & 0xE0) != 0x60 && mstBoundingBoxCollides2(m->monster1Index, x1, y1, x2, y2) != 0) {
 			t->flags |= 0x80;
@@ -4489,15 +4483,11 @@ int Game::mstTask_main(Task *t) {
 		case 226: { // 68 - add_monster_group
 				const int num = READ_LE_UINT16(p + 2);
 				const MstOp226Data *m226Data = &_res->_mstOp226Data[num];
-				int vf = _res->_mstPointOffsets[_currentScreen].xOffset;
+				int xPos = _res->_mstPointOffsets[_currentScreen].xOffset;
 				int yPos = _res->_mstPointOffsets[_currentScreen].yOffset;
 				int countRight = 0; // var1C
 				int countLeft  = 0; // var8
-				int vc  = m226Data->unk4 * 256;
-				int vd  = vf + 256;
-				vf -= vc;
-				vd += vc;
-				int var20 = vd;
+				int xOffset  = m226Data->unk4 * 256;
 				for (int i = 0; i < kMaxMonsterObjects1; ++i) {
 					MonsterObject1 *m = &_monsterObjects1Table[i];
 					if (!m->m46) {
@@ -4506,10 +4496,7 @@ int Game::mstTask_main(Task *t) {
 					if (m->monsterInfos[944] != _res->_mstMonsterInfos[m226Data->unk0 * kMonsterInfoDataSize + 944]) {
 						continue;
 					}
-					if (m->xMstPos < vf || m->xMstPos > var20) {
-						continue;
-					}
-					if (m->yMstPos < yPos || m->yMstPos > yPos + 192) {
+					if (!rect_contains(xPos - xOffset, yPos, xPos + xOffset + 256, yPos + 192, m->xMstPos, m->yMstPos)) {
 						continue;
 					}
 					if (_mstAndyLevelPosX > m->xMstPos) {
@@ -4523,7 +4510,7 @@ int Game::mstTask_main(Task *t) {
 				if (total >= m226Data->unk3) {
 					break;
 				}
-				vc = m226Data->unk3 - total;
+				int vc = m226Data->unk3 - total;
 
 				int countType1 = m226Data->unk1; // vf
 				if (countLeft >= countType1) {
@@ -4567,7 +4554,7 @@ int Game::mstTask_main(Task *t) {
 				const int a = getTaskVar(t, m->indexVar1, m->maskVars & 15);
 				const int b = getTaskVar(t, m->indexVar2, m->maskVars >> 4);
 				if (compareOp(m->compare, a, b)) {
-					assert(m->codeData != kNone);
+					assert(m->codeData < _res->_mstHdr.codeSize);
 					p = _res->_mstCodeData + m->codeData * 4 - 4;
 				}
 			}
@@ -4579,13 +4566,13 @@ int Game::mstTask_main(Task *t) {
 				const int a = getTaskFlag(t, m->indexVar1, m->maskVars & 15);
 				const int b = getTaskFlag(t, m->indexVar2, m->maskVars >> 4);
 				if (compareOp(m->compare, a, b)) {
-					assert(m->codeData != kNone);
+					assert(m->codeData < _res->_mstHdr.codeSize);
 					p = _res->_mstCodeData + m->codeData * 4 - 4;
 				}
 			}
 			break;
 		case 231:
-		case 232: { // 71
+		case 232: { // 71 - compare_flags_monster
 				const int num = READ_LE_UINT16(p + 2);
 				const MstOp234Data *m = &_res->_mstOp234Data[num];
 				const int a = getTaskFlag(t, m->indexVar1, m->maskVars & 15);
@@ -4593,10 +4580,9 @@ int Game::mstTask_main(Task *t) {
 				if (compareOp(m->compare, a, b)) {
 					if (p[0] == 231) {
 						LvlObject *o = 0;
-						MonsterObject1 *m = t->monster1;
-						if (m) {
-							if ((m->flagsA6 & 2) == 0) {
-								o = m->o16;
+						if (t->monster1) {
+							if ((t->monster1->flagsA6 & 2) == 0) {
+								o = t->monster1->o16;
 							}
 						} else if (t->monster2) {
 							o = t->monster2->o;
@@ -4612,10 +4598,9 @@ int Game::mstTask_main(Task *t) {
 				} else {
 					if (p[0] == 232) {
 						LvlObject *o = 0;
-						MonsterObject1 *m = t->monster1;
-						if (m) {
-							if ((m->flagsA6 & 2) == 0) {
-								o = m->o16;
+						if (t->monster1) {
+							if ((t->monster1->flagsA6 & 2) == 0) {
+								o = t->monster1->o16;
 							}
 						} else if (t->monster2) {
 							o = t->monster2->o;
@@ -4632,7 +4617,7 @@ int Game::mstTask_main(Task *t) {
 			}
 			break;
 		case 233:
-		case 234: { // 72
+		case 234: { // 72 - compare_vars_monster
 				const int num = READ_LE_UINT16(p + 2);
 				const MstOp234Data *m = &_res->_mstOp234Data[num];
 				const int a = getTaskVar(t, m->indexVar1, m->maskVars & 15);
@@ -4820,7 +4805,11 @@ int Game::mstTask_main(Task *t) {
 			p = t->codeData;
 		}
 		++_runTaskOpcodesCount;
-	} while (_runTaskOpcodesCount <= 128 && ret == 0);
+		if (_runTaskOpcodesCount >= 128) { // prevent infinite loop
+			warning("Stopping task %p, counter %d", t, _runTaskOpcodesCount);
+			break;
+		}
+	} while (ret == 0);
 	if (t->codeData) {
 		t->codeData = p;
 	}
@@ -4833,7 +4822,7 @@ void Game::mstOp26_removeMstTaskScreen(Task **tasksList, int screenNum) {
 		MonsterObject1 *m = current->monster1; // vc
 		Task *next = current->nextPtr; // ve
 		if (m && m->o16->screenNum == screenNum) {
-			if (_mstActionNum != -1 && (m->flagsA5 & 8) != 0 && m->action != 0) {
+			if (_mstActionNum != -1 && (m->flagsA5 & 8) != 0 && m->action) {
 				mstMonster1ClearChasingMonster(m);
 			}
 			if (m->monsterInfos[946] & 4) {
@@ -4862,7 +4851,7 @@ void Game::mstOp27_removeMstTaskScreenType(Task **tasksList, int screenNum, int 
 		MonsterObject1 *m = current->monster1;
 		Task *next = current->nextPtr;
 		if (m && m->o16->screenNum == screenNum && (m->monsterInfos[944] & 0x7F) == type) {
-			if (_mstActionNum != -1 && (m->flagsA5 & 8) != 0 && m->action != 0) {
+			if (_mstActionNum != -1 && (m->flagsA5 & 8) != 0 && m->action) {
 				mstMonster1ClearChasingMonster(m);
 			}
 			if (m->monsterInfos[946] & 4) {
@@ -5008,7 +4997,7 @@ int Game::mstOp49_setMovingBounds(int a, int b, int c, int d, int screen, Task *
 	m->goalPos_x2 = m->goalDistance_x2;
 	m->goalPos_y1 = m->goalDistance_y1;
 	m->goalPos_y2 = m->goalDistance_y2;
-	m->bboxNum[2] = 0xFF;
+	m->walkBoxNum = 0xFF;
 	m->unkC0 = -1;
 	m->unkBC = -1;
 	m->targetDirectionMask = 0xFF;
@@ -5020,7 +5009,7 @@ int Game::mstOp49_setMovingBounds(int a, int b, int c, int d, int screen, Task *
 		m->goalDistance_x1 = m->goalPos_x1 = m->goalDistance_x2 = m->goalPos_x2 = m->xMstPos;
 	}
 	if (m->monsterInfos[946] & 4) {
-		m->bboxNum[3] = 0xFF;
+		m->unkAB = 0xFF;
 		m->targetLevelPos_x = -1;
 		m->targetLevelPos_y = -1;
 		mstBoundingBoxClear(m, 1);
@@ -5078,22 +5067,21 @@ int Game::mstOp49_setMovingBounds(int a, int b, int c, int d, int screen, Task *
 			}
 		}
 	}
-
 	const uint8_t *p = _res->_mstMonsterInfos + m->m49Unk1->offsetMonsterInfo;
 	if ((m->monsterInfos[946] & 4) != 0 && p[0xE] != 0 && m->bboxNum[0] == 0xFF) {
 		const int x1 = m->xMstPos + (int8_t)p[0xC];
-		const int x2 = x1 + p[0xE] - 1;
 		const int y1 = m->yMstPos + (int8_t)p[0xD];
+		const int x2 = x1 + p[0xE] - 1;
 		const int y2 = y1 + p[0xF] - 1;
 		if (mstBoundingBoxCollides2(m->monster1Index, x1, y1, x2, y2) != 0) {
 			m->indexUnk49Unk1 = 0;
 			m->m49Unk1 = &m->m49->data1[0];
-			m->bboxNum[3] = 0xFF;
+			m->unkAB = 0xFF;
 			m->targetLevelPos_x = -1;
 			m->targetLevelPos_y = -1;
 			mstBoundingBoxClear(m, 1);
 			if (p[0xE] != 0) {
-				t->flags &= ~0x80;
+				t->flags |= 0x80;
 				mstTaskResetMonster1WalkPath(t);
 				return 0;
 			}
@@ -5111,7 +5099,7 @@ int Game::mstOp49_setMovingBounds(int a, int b, int c, int d, int screen, Task *
 			mstMonster1MoveTowardsGoal1(m);
 		} else if (t->run == &Game::mstTask_monsterWait9) {
 			mstMonster1MoveTowardsGoal2(m);
-		} else {
+		} else { // &Game::mstTask_monsterWait7
 			mstMonster1MoveTowardsGoal1(m);
 		}
 		const MstMovingBoundsUnk1 *m49Unk1 = m->m49Unk1;
@@ -5170,9 +5158,8 @@ void Game::mstOp52() {
 		return;
 	}
 	MstMonsterAction *m48 = &_res->_mstMonsterActionData[_mstActionNum];
-	int j = 0;
 	for (int i = 0; i < m48->areaCount; ++i) {
-		MstMonsterArea *m48Area = &m48->area[j];
+		MstMonsterArea *m48Area = &m48->area[i];
 		const uint8_t num = m48Area->data->monster1Index;
 		if (num != 0xFF) {
 			assert(num < kMaxMonsterObjects1);
@@ -5181,8 +5168,8 @@ void Game::mstOp52() {
 			if ((m->flagsA5 & 0x70) == 0) {
 				assert(m->task->monster1 == m);
 				Task *t = m->task;
-				const int a = (m->o16->flags0 & 255) * 28;
-				if (m->monsterInfos[a] != 0) {
+				const int num = m->o16->flags0 & 0xFF;
+				if (m->monsterInfos[num * 28] != 0) {
 					if (t->run != &Game::mstTask_monsterWait1 && t->run != &Game::mstTask_monsterWait4 && t->run != &Game::mstTask_monsterWait2 && t->run != &Game::mstTask_monsterWait3 && t->run != &Game::mstTask_monsterWait5 && t->run != &Game::mstTask_monsterWait6 && t->run != &Game::mstTask_monsterWait7 && t->run != &Game::mstTask_monsterWait8 && t->run != &Game::mstTask_monsterWait9 && t->run != &Game::mstTask_monsterWait10) {
 						m->flagsA5 = (m->flagsA5 & ~0xF) | 6;
 						mstTaskInitMonster1Type2(m->task, 1);
@@ -5197,7 +5184,6 @@ void Game::mstOp52() {
 				}
 			}
 		}
-		++j;
 	}
 	_mstActionNum = -1;
 }
@@ -5218,7 +5204,6 @@ bool Game::mstHasMonsterInRange(const MstMonsterAction *m48, uint8_t flag) {
 
 	int var24 = 0;
 	//int var28 = 0;
-	//int var18 = 0;
 	int vf = 0;
 	for (int i = 0; i < m48->areaCount; ++i) {
 		const MstMonsterArea *m12 = &m48->area[i];
@@ -5311,13 +5296,11 @@ l1:
 			var4C = vf;
 			goto l1; 
 		}
-		//var18 += 12;
 		//++var28;
 	}
 	//var28 = vf;
-	//int var20 = 0;
 	for (int i = vf; i < m48->areaCount; ++i) {
-		MstMonsterArea *m12 = &m48->area[i]; // var20
+		MstMonsterArea *m12 = &m48->area[i];
 		assert(m12->count == 1);
 		MstMonsterAreaAction *m12u4 = m12->data;
 		if (m12->unk0 == 0) {
@@ -5402,7 +5385,6 @@ l2:
 				goto l2; 
 			}
 		}
-		//var20 += 12;
 		//++var28;
 	}
 	return var24 != 0;
@@ -5848,20 +5830,15 @@ int Game::mstOp56_specialAction(Task *t, int code, int num) {
 				screenNum = _res->_mstHdr.screensCount - 1;
 			}
 			const int x = _res->_mstPointOffsets[screenNum].xOffset;
-			const int y = _res->_mstPointOffsets[screenNum].yOffset; // vd
-			const int xOffset = op204Data->arg3 * 256; // va
-			const int x1 = x - xOffset; // ve
-			const int x2 = x + xOffset; // vf
+			const int y = _res->_mstPointOffsets[screenNum].yOffset;
+			const int xOffset = op204Data->arg3 * 256;
 			int count = 0;
 			for (int i = 0; i < kMaxMonsterObjects1; ++i) {
 				const MonsterObject1 *m = &_monsterObjects1Table[i];
 				if (!m->m46) {
 					continue;
 				}
-				if (m->xMstPos < x1 || m->xMstPos > x2) {
-					continue;
-				}
-				if (m->yMstPos < y || m->yMstPos > y + 192) {
+				if (!rect_contains(x - xOffset, y, x + xOffset + 256, y + 192, m->xMstPos, m->yMstPos)) {
 					continue;
 				}
 				const int num = op204Data->arg1;
@@ -6275,8 +6252,8 @@ void Game::mstResetCollisionTable() {
 			if ((_bl & 0xB0) != 0) {
 				continue;
 			}
-			const uint8_t *p = m->monsterInfos + (m->o16->flags0 & 255) * 28;
-			if (p[0] != 0) {
+			const int num = m->o16->flags0 & 0xFF;
+			if (m->monsterInfos[num * 28] != 0) {
 				continue;
 			}
 			if (m->task->run == &Game::mstTask_monsterWait4) {
@@ -6301,6 +6278,7 @@ void Game::mstResetCollisionTable() {
 	}
 }
 
+// resume bytecode execution
 void Game::mstTaskRestart(Task *t) {
 	t->run = &Game::mstTask_main;
 	LvlObject *o = 0;
@@ -6353,7 +6331,7 @@ int Game::mstTaskInitMonster1Type1(Task *t) {
 	if (m->monsterInfos[946] & 2) {
 		m->unkC0 = -1;
 		m->unkBC = -1;
-		m->bboxNum[2] = 0xFF;
+		m->walkBoxNum = 0xFF;
 		m->targetDirectionMask = 0xFF;
 		y = m34->top;
 		if (m->yMstPos < m34->top || m->yMstPos > m34->bottom) {
@@ -6362,7 +6340,7 @@ int Game::mstTaskInitMonster1Type1(Task *t) {
 	}
 	x = m34->left;
 	if (m->monsterInfos[946] & 4) {
-		m->bboxNum[3] = 0xFF;
+		m->unkAB = 0xFF;
 		m->targetLevelPos_x = -1;
 		m->targetLevelPos_y = -1;
 		mstBoundingBoxClear(m, 1);
@@ -6455,18 +6433,18 @@ int Game::mstTaskInitMonster1Type1(Task *t) {
 		const uint8_t *p = _res->_mstMonsterInfos + m->m49Unk1->offsetMonsterInfo;
 		if ((m->monsterInfos[946] & 4) != 0 && p[0xE] != 0 && m->bboxNum[0] == 0xFF) {
 			const int x1 = m->xMstPos + (int8_t)p[0xC];
-			const int x2 = x1 + p[0xE] - 1;
 			const int y1 = m->yMstPos + (int8_t)p[0xD];
+			const int x2 = x1 + p[0xE] - 1;
 			const int y2 = y1 + p[0xF] - 1;
 			if (mstBoundingBoxCollides2(m->monster1Index, x1, y1, x2, y2) != 0) {
 				m->indexUnk49Unk1 = 0;
 				m->m49Unk1 = &m->m49->data1[0];
-				m->bboxNum[3] = 0xFF;
+				m->unkAB = 0xFF;
 				m->targetLevelPos_x = -1;
 				m->targetLevelPos_y = -1;
 				mstBoundingBoxClear(m, 1);
 				if (p[0xE] != 0) {
-					t->flags &= ~0x80;
+					t->flags |= 0x80;
 					mstTaskResetMonster1WalkPath(t);
 					return 0;
 				}
@@ -6478,7 +6456,7 @@ int Game::mstTaskInitMonster1Type1(Task *t) {
 			m->indexUnk49Unk1 = m->m49->count1 - 1;
 			m->m49Unk1 = &m->m49->data1[m->indexUnk49Unk1];
 			if (m->monsterInfos[946] & 4) {
-				m->bboxNum[3] = 0xFF;
+				m->unkAB = 0xFF;
 				m->targetLevelPos_x = -1;
 				m->targetLevelPos_y = -1;
 				mstBoundingBoxClear(m, 1);
@@ -6527,7 +6505,7 @@ int Game::mstTaskInitMonster1Type2(Task *t, int flag) {
 	m->goalScreenNum = 0xFD;
 	m->unkC0 = -1;
 	m->unkBC = -1;
-	m->bboxNum[2] = 0xFF;
+	m->walkBoxNum = 0xFF;
 	m->targetDirectionMask = 0xFF;
 	if (mstSetCurrentPos(m, m->xMstPos, m->yMstPos)) {
 		mstTaskResetMonster1WalkPath(t);
@@ -6538,7 +6516,7 @@ int Game::mstTaskInitMonster1Type2(Task *t, int flag) {
 	if (p[946] & 2) {
 		m->unkE4 = 255;
 		if (p[946] & 4) {
-			m->bboxNum[3] = 0xFF;
+			m->unkAB = 0xFF;
 			m->targetLevelPos_x = -1;
 			m->targetLevelPos_y = -1;
 			mstBoundingBoxClear(m, 1);
@@ -6619,18 +6597,18 @@ int Game::mstTaskInitMonster1Type2(Task *t, int flag) {
 			const uint8_t *p = _res->_mstMonsterInfos + m->m49Unk1->offsetMonsterInfo;
 			if ((m->monsterInfos[946] & 4) != 0 && p[0xE] != 0 && m->bboxNum[0] == 0xFF) {
 				const int x1 = m->xMstPos + (int8_t)p[0xC];
-				const int x2 = x1 + p[0xE] - 1;
 				const int y1 = m->yMstPos + (int8_t)p[0xD];
+				const int x2 = x1 + p[0xE] - 1;
 				const int y2 = y1 + p[0xF] - 1;
 				if (mstBoundingBoxCollides2(m->monster1Index, x1, y1, x2, y2) != 0) {
 					m->indexUnk49Unk1 = 0;
 					m->m49Unk1 = &m->m49->data1[0];
-					m->bboxNum[3] = 0xFF;
+					m->unkAB = 0xFF;
 					m->targetLevelPos_x = -1;
 					m->targetLevelPos_y = -1;
 					mstBoundingBoxClear(m, 1);
 					if (p[0xE] != 0) {
-						t->flags &= ~0x80;
+						t->flags |= 0x80;
 						mstTaskResetMonster1WalkPath(t);
 						return 0;
 					}
@@ -6642,7 +6620,7 @@ int Game::mstTaskInitMonster1Type2(Task *t, int flag) {
 				m->indexUnk49Unk1 = m->m49->count1 - 1;
 				m->m49Unk1 = &m->m49->data1[m->indexUnk49Unk1];
 				if (m->monsterInfos[946] & 4) {
-					m->bboxNum[3] = 0xFF;
+					m->unkAB = 0xFF;
 					m->targetLevelPos_x = -1;
 					m->targetLevelPos_y = -1;
 					mstBoundingBoxClear(m, 1);
@@ -6944,17 +6922,7 @@ int Game::mstTask_wait2(Task *t) {
 	debug(kDebug_MONSTER, "mstTask_wait2 t %p count %d", t, t->arg1);
 	--t->arg1;
 	if (t->arg1 == 0) {
-		t->run = &Game::mstTask_main;
-		LvlObject *o = 0;
-		if (t->monster1) {
-			o = t->monster1->o16;
-		} else if (t->monster2) {
-			o = t->monster2->o;
-		}
-		if (o) {
-			o->actionKeyMask = 0;
-			o->directionKeyMask = 0;
-		}
+		mstTaskRestart(t);
 		return 0;
 	}
 	return 1;
@@ -6965,17 +6933,7 @@ int Game::mstTask_wait3(Task *t) {
 	if (getTaskFlag(t, t->arg2, t->arg1) == 0) {
 		return 1;
 	}
-	t->run = &Game::mstTask_main;
-	LvlObject *o = 0;
-	if (t->monster1) {
-		o = t->monster1->o16;
-	} else if (t->monster2) {
-		o = t->monster2->o;
-	}
-	if (o) {
-		o->actionKeyMask = 0;
-		o->directionKeyMask = 0;
-	}
+	mstTaskRestart(t);
 	return 0;
 }
 
@@ -6985,24 +6943,12 @@ int Game::mstTask_idle(Task *t) {
 }
 
 int Game::mstTask_mstOp231(Task *t) {
+	debug(kDebug_MONSTER, "mstTask_mstOp231 t %p", t);
 	const MstOp234Data *m = &_res->_mstOp234Data[t->arg2];
 	const int a = getTaskFlag(t, m->indexVar1, m->maskVars & 15);
 	const int b = getTaskFlag(t, m->indexVar2, m->maskVars >> 4);
 	if (!compareOp(m->compare, a, b)) {
-		LvlObject *o = 0;
-		MonsterObject1 *m = t->monster1;
-		if (m) {
-			if ((m->flagsA6 & 2) == 0) {
-				o = m->o16;
-			}
-		} else if (t->monster2) {
-			o = t->monster2->o;
-		}
-		if (o) {
-			o->actionKeyMask = 0;
-			o->directionKeyMask = 0;
-		}
-		t->run = &Game::mstTask_main;
+		mstTaskRestart(t);
 		return 0;
 	}
 	return 1;
@@ -7020,17 +6966,7 @@ int Game::mstTask_mstOp233(Task *t) {
 	const int a = getTaskVar(t, m->indexVar1, m->maskVars & 15);
 	const int b = getTaskVar(t, m->indexVar2, m->maskVars >> 4);
 	if (!compareOp(m->compare, a, b)) {
-		t->run = &Game::mstTask_main;
-		LvlObject *o = 0;
-		if (t->monster1) {
-			o = t->monster1->o16;
-		} else if (t->monster2) {
-			o = t->monster2->o;
-		}
-		if (o) {
-			o->actionKeyMask = 0;
-			o->directionKeyMask = 0;
-		}
+		mstTaskRestart(t);
 		return 0;
 	}
 	return 1;
@@ -7042,17 +6978,7 @@ int Game::mstTask_mstOp234(Task *t) {
 	const int a = getTaskVar(t, m->indexVar1, m->maskVars & 15);
 	const int b = getTaskVar(t, m->indexVar2, m->maskVars >> 4);
 	if (compareOp(m->compare, a, b)) {
-		t->run = &Game::mstTask_main;
-		LvlObject *o = 0;
-		if (t->monster1) {
-			o = t->monster1->o16;
-		} else if (t->monster2) {
-			o = t->monster2->o;
-		}
-		if (o) {
-			o->actionKeyMask = 0;
-			o->directionKeyMask = 0;
-		}
+		mstTaskRestart(t);
 		return 0;
 	}
 	return 1;

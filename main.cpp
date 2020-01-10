@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
 	}
 	g->_res->loadSetupDat();
 	if (_runMenu) {
-		Menu *m = new Menu(g->_paf, g->_res, g->_video);
+		Menu *m = new Menu(g, g->_paf, g->_res, g->_video);
 		m->mainLoop();
 		delete m;
 	} else {

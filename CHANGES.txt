@@ -1,3 +1,7 @@
+* release 0.2.5
+	- fixed spiders and worms movement
+	- several fixes for big endian platforms
+
 * release 0.2.4
 	- fixed Amigo walk path in 'pwr2' screen 7
 	- fixed glowing stone puzzle in 'lar2'

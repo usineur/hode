@@ -42,7 +42,7 @@ enum {
 	kCheatOneHitPlasmaCannon = 1 << 1,
 	kCheatOneHitSpecialPowers = 1 << 2,
 	kCheatWalkOnLava = 1 << 3,
-	kCheatGateNoCrush = 1 << 4,
+	kCheatGateNoCrush = 1 << 4
 };
 
 struct Game {
@@ -404,7 +404,7 @@ struct Game {
 	void mstBoundingBoxClear(MonsterObject1 *m, int dir);
 	int mstBoundingBoxCollides1(int num, int x1, int y1, int x2, int y2) const;
 	int mstBoundingBoxUpdate(int num, int monster1Index, int x1, int y1, int x2, int y2);
-	int mstBoundingBoxCollides2(int num, int x1, int y1, int x2, int y2) const;
+	int mstBoundingBoxCollides2(int monster1Index, int x1, int y1, int x2, int y2) const;
 
 	void mstTaskSetMonster2ScreenPosition(Task *t);
 	int getMstDistance(int y, const AndyShootData *p) const;
