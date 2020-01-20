@@ -257,7 +257,6 @@ void Level_rock::postScreenUpdate_rock_screen16() {
 }
 
 void Level_rock::postScreenUpdate_rock_screen18() {
-	LvlObject *o;
 	switch (_res->_screensState[18].s0) {
 	case 0:
 		if (_andyObject->yPos + _andyObject->height < 162) {
@@ -274,34 +273,32 @@ void Level_rock::postScreenUpdate_rock_screen18() {
 		}
 		break;
 	case 2:
-		o = _g->findLvlObject(2, 0, 18);
-		assert(o);
-		o->actionKeyMask = 1;
 		++_screenCounterTable[18];
-		if (_screenCounterTable[18] == 43) {
+		if (_screenCounterTable[18] == 29) {
+			LvlObject *o = _g->findLvlObject(2, 0, 18);
+			o->actionKeyMask = 1;
+		} else if (_screenCounterTable[18] == 43) {
 			_g->setShakeScreen(2, 5);
 			_res->_resLvlScreenBackgroundDataTable[18].currentMaskId = 1;
 			_g->setupScreenMask(18);
-		} else if (_screenCounterTable[18] == 51) {
-			_res->_screensState[18].s0 = 1;
-			_res->_resLvlScreenBackgroundDataTable[18].currentBackgroundId = 1;
-		} else {
-			o = _g->findLvlObject(2, 0, 18);
-			assert(o);
-			if ((o->flags0 & 0x1F) == 11 || (o->flags0 & 0x1F) == 1) {
+		} else if (_screenCounterTable[18] < 57) {
+			LvlObject *o = _g->findLvlObject(2, 0, 18);
+			if ((o->flags0 & 0x1F) != 11 || (_andyObject->flags0 & 0x1F) == 11) {
 				break;
 			}
 			BoundingBox box = { 24, 98, 108, 165 };
 			AndyLvlObjectData *data = (AndyLvlObjectData *)_g->getLvlObjectDataPtr(_andyObject, kObjectDataTypeAndy);
-			if (!_g->clipBoundingBox(&box, &data->boundingBox)) {
-				return;
+			if (_g->clipBoundingBox(&box, &data->boundingBox)) {
+				_andyObject->anim = 155;
+				_andyObject->xPos = 59;
+				_andyObject->yPos = 150;
+				_andyObject->frame = 0;
+				_andyObject->flags2 = 0x300C;
+				_g->setupLvlObjectBitmap(_andyObject);
 			}
-			_andyObject->anim = 155;
-			_andyObject->xPos = 59;
-			_andyObject->yPos = 150;
-			_andyObject->frame = 0;
-			_andyObject->flags2 = 0x300C;
-			_g->setupLvlObjectBitmap(_andyObject);
+		} else {
+			_res->_screensState[18].s0 = 1;
+			_res->_resLvlScreenBackgroundDataTable[18].currentBackgroundId = 1;
 		}
 		break;
 	}

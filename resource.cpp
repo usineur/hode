@@ -206,7 +206,7 @@ bool Resource::loadDatHintImage(int num, uint8_t *dst, uint8_t *pal) {
 		_datFile->read(pal, 768);
 		return true;
 	}
-	return true;
+	return false;
 }
 
 bool Resource::loadDatLoadingImage(uint8_t *dst, uint8_t *pal) {
@@ -240,6 +240,13 @@ void Resource::loadDatMenuBuffers() {
 	if (_menuBuffer0) {
 		_datFile->read(_menuBuffer0, _datHdr.bufferSize0);
 	}
+}
+
+void Resource::unloadDatMenuBuffers() {
+	free(_menuBuffer1);
+	_menuBuffer1 = 0;
+	free(_menuBuffer0);
+	_menuBuffer0 = 0;
 }
 
 void Resource::loadLevelData(int levelNum) {
@@ -1038,14 +1045,53 @@ void Resource::checkSssCode(const uint8_t *buf, int size) const {
 	assert(offset == size);
 }
 
+static int8_t sext8(uint8_t x, int bits) {
+	const int shift = 8 - bits;
+	return ((int8_t)(x << shift)) >> shift;
+}
+
+static int _pcmL1, _pcmL0;
+
+static void decodeSssSpuAdpcmUnit(const uint8_t *src, int16_t *dst) { // src: 16bytes, dst: 112bytes
+	static const int16_t K0_1024[] = { 0, 960, 1840, 1568, 1952 };
+	static const int16_t K1_1024[] = { 0,   0, -832, -880, -960 };
+	const uint8_t param = *src++;
+	const int shift = 12 - (param & 15);
+	assert(shift >= 0);
+	const int filter = param >> 4;
+	assert(filter < 5);
+	const int flag = *src++;
+	assert(flag < 7);
+	for (int i = 0; i < 14; ++i) {
+		const uint8_t b = *src++;
+		const int t1 = sext8(b & 15, 4);
+		const int s1 = (t1 << shift) + ((_pcmL0 * K0_1024[filter] + _pcmL1 * K1_1024[filter] + 512) >> 10);
+		_pcmL1 = _pcmL0;
+		_pcmL0 = s1;
+		dst[0] = dst[1] = CLIP(_pcmL0, -32768, 32767);
+		dst += 2;
+		const int t2 = sext8(b >> 4, 4);
+		const int s2 = (t2 << shift) + ((_pcmL0 * K0_1024[filter] + _pcmL1 * K1_1024[filter] + 512) >> 10);
+		_pcmL1 = _pcmL0;
+		_pcmL0 = s2;
+		dst[0] = dst[1] = CLIP(_pcmL0, -32768, 32767);
+		dst += 2;
+	}
+}
+
 uint32_t Resource::getSssPcmSize(const SssPcm *pcm) const {
+	if (_isPsx) {
+		assert(pcm->strideSize == 512);
+		const uint32_t size = pcm->strideCount * 512;
+		return (size / 16) * 56 * sizeof(int16_t);
+	}
 	return (pcm->strideSize - 256 * sizeof(int16_t)) * pcm->strideCount * sizeof(int16_t);
 }
 
 void Resource::loadSssPcm(File *fp, SssPcm *pcm) {
 	assert(!pcm->ptr);
-	const uint32_t decompressedSize = getSssPcmSize(pcm);
-	if (decompressedSize != 0) {
+	if (pcm->totalSize != 0) {
+		const uint32_t decompressedSize = getSssPcmSize(pcm);
 		debug(kDebug_SOUND, "Loading PCM %p decompressedSize %d", pcm, decompressedSize);
 		int16_t *p = (int16_t *)malloc(decompressedSize);
 		if (!p) {
@@ -1053,6 +1099,18 @@ void Resource::loadSssPcm(File *fp, SssPcm *pcm) {
 			return;
 		}
 		pcm->ptr = p;
+		if (_isPsx) {
+			for (int i = 0; i < pcm->strideCount; ++i) {
+				uint8_t buf[512];
+				fp->read(buf, sizeof(buf));
+				_pcmL1 = _pcmL0 = 0;
+				for (int j = 0; j < 512; j += 16) {
+					decodeSssSpuAdpcmUnit(buf + j, p);
+					p += 56;
+				}
+			}
+			return;
+		}
 		if (fp != _datFile || pcm == &_sssPcmTable[0]) {
 			fp->seek(pcm->offset, SEEK_SET);
 		}
@@ -1091,13 +1149,20 @@ void Resource::resetSssFilters() {
 }
 
 void Resource::preloadSssPcmList(const SssPreloadInfoData *preloadInfoData) {
+	File *fp = _sssFile;
+	if (_isPsx) {
+		_lvlFile->seek(preloadInfoData->pcmBlockOffset * 2048, SEEK_SET);
+		fp = _lvlFile;
+	}
 	const uint8_t num = preloadInfoData->preload1Index;
 	const SssPreloadList *preloadList = &_sssPreload1Table[num];
 	const bool is16Bits = (_sssHdr.version == 12);
 	for (int i = 0; i < preloadList->count; ++i) {
 		const int num = is16Bits ? READ_LE_UINT16(preloadList->ptr + i * 2) : preloadList->ptr[i];
 		if (!_sssPcmTable[num].ptr) {
-			loadSssPcm(_sssFile, &_sssPcmTable[num]);
+			loadSssPcm(fp, &_sssPcmTable[num]);
+		} else if (_isPsx) {
+			fp->seek(_sssPcmTable[num].strideCount * 512, SEEK_CUR);
 		}
 	}
 }
@@ -1776,4 +1841,78 @@ void Resource::flagMstCodeForPos(int num, uint8_t value) {
 		msac->unk0x1D = value;
 		i = msac->nextByValue;
 	}
+}
+
+enum {
+	kModeSave,
+	kModeLoad
+};
+
+static uint8_t _checksum;
+
+template <int M>
+static void persistUint8(FILE *fp, uint8_t &val) {
+	if (M == kModeSave) {
+		fputc(val, fp);
+	} else if (M == kModeLoad) {
+		val = fgetc(fp);
+	}
+	_checksum ^= val;
+}
+
+template <int M>
+static void persistUint32(FILE *fp, uint32_t &val) {
+	if (M == kModeSave) {
+		for (int i = 0; i < 4; ++i) {
+			const uint8_t b = (val >> (i * 8)) & 0xFF;
+			fputc(b, fp);
+			_checksum ^= b;
+		}
+	} else if (M == kModeLoad) {
+		val = 0;
+		for (int i = 0; i < 4; ++i) {
+			const uint8_t b = fgetc(fp);
+			val |= b << (i * 8);
+			_checksum ^= b;
+		}
+	}
+}
+
+template <int M>
+static void persistSetupCfg(FILE *fp, SetupConfig *config) {
+	_checksum = 0;
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 10; ++j) {
+			persistUint8<M>(fp, config->players[i].progress[j]);
+		}
+		persistUint8<M>(fp, config->players[i].levelNum);
+		persistUint8<M>(fp, config->players[i].checkpointNum);
+		persistUint32<M>(fp, config->players[i].cutscenesMask);
+		persistUint8<M>(fp, config->players[i].difficulty);
+		for (int j = 0; j < 32; ++j) {
+			persistUint8<M>(fp, config->players[i].controls[j]);
+		}
+		persistUint8<M>(fp, config->players[i].stereo);
+		persistUint8<M>(fp, config->players[i].volume);
+		persistUint8<M>(fp, config->players[i].currentLevel);
+	}
+	persistUint8<M>(fp, config->unkD0);
+	persistUint8<M>(fp, config->currentPlayer);
+	uint8_t checksum = _checksum;
+	persistUint8<M>(fp, config->unkD2);
+	if (M == kModeSave) {
+		config->checksum = checksum;
+	}
+	persistUint8<M>(fp, config->checksum);
+	if (M == kModeLoad && checksum != config->checksum) {
+		warning("Invalid checksum 0x%x (0x%x) for 'setup.cfg'", config->checksum, checksum);
+	}
+}
+
+void Resource::writeSetupCfg(FILE *fp, SetupConfig *config) {
+	persistSetupCfg<kModeSave>(fp, config);
+}
+
+void Resource::readSetupCfg(FILE *fp, SetupConfig *config) {
+	persistSetupCfg<kModeLoad>(fp, config);
 }
