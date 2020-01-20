@@ -287,7 +287,7 @@ void Game::decodeShadowScreenMask(LvlBackgroundData *lvl) {
 // a: type/source (0, 1, 2) b: num/index (3, monster1Index, monster2.monster1Index)
 void Game::playSound(int num, LvlObject *ptr, int a, int b) {
 	MixerLock ml(&_mix);
-	if (!_res->_isPsx && num < _res->_sssHdr.infosDataCount) {
+	if (num < _res->_sssHdr.infosDataCount) {
 		debug(kDebug_GAME, "playSound num %d/%d a=%d b=%d", num, _res->_sssHdr.infosDataCount, a, b);
 		_currentSoundLvlObject = ptr;
 		playSoundObject(&_res->_sssInfosData[num], a, b);
@@ -2095,10 +2095,24 @@ void Game::mainLoop(int level, int checkpoint, bool levelChanged) {
 	if (_loadingScreenEnabled) {
 		displayLoadingScreen();
 	}
+	if (_resumeGame) {
+		const int num = _setupConfig.currentPlayer;
+		level = _setupConfig.players[num].levelNum;
+		if (level > kLvl_dark) {
+			level = kLvl_dark;
+		}
+		checkpoint = _setupConfig.players[num].checkpointNum;
+		if (checkpoint != 0 && checkpoint >= _res->_datHdr.levelCheckpointsCount[level]) {
+			checkpoint = _setupConfig.players[num].progress[level];
+		}
+		_paf->_playedMask = _setupConfig.players[num].cutscenesMask;
+		debug(kDebug_GAME, "Restart at level %d checkpoint %d cutscenes 0x%x", level, checkpoint, _paf->_playedMask);
+	}
 	_video->_font = _res->_fontBuffer;
 	assert(level < kLvl_test);
 	_currentLevel = level;
 	createLevel();
+	assert(checkpoint < _res->_datHdr.levelCheckpointsCount[level]);
 	_level->_checkpoint = checkpoint;
 	_mix._lock(1);
 	_res->loadLevelData(_currentLevel);
@@ -2145,13 +2159,14 @@ void Game::mainLoop(int level, int checkpoint, bool levelChanged) {
 	do {
 		const int frameTimeStamp = g_system->getTimeStamp() + _frameMs;
 		levelMainLoop();
-		int diff = frameTimeStamp - g_system->getTimeStamp();
-		if (diff < 10) {
-			diff = 10;
+		if (g_system->inp.quit) {
+			break;
 		}
-		g_system->sleep(diff);
-	} while (!g_system->inp.quit && !_endLevel);
+		const int delay = MAX<int>(10, frameTimeStamp - g_system->getTimeStamp());
+		g_system->sleep(delay);
+	} while (!_endLevel);
 	_animBackgroundDataCount = 0;
+	saveSetupCfg();
 	callLevel_terminate();
 }
 
@@ -2161,11 +2176,11 @@ void Game::mixAudio(int16_t *buf, int len) {
 		return;
 	}
 
-	static const int kStereoSamples = 3528; // stereo
+	const int kStereoSamples = _res->_isPsx ? 1792 * 2 : 1764 * 2; // stereo
 
 	static int count = 0;
 
-	static int16_t buffer[kStereoSamples];
+	static int16_t buffer[4096];
 	static int bufferOffset = 0;
 	static int bufferSize = 0;
 
@@ -2389,7 +2404,7 @@ LvlObject *Game::updateAnimatedLvlObjectType2(LvlObject *ptr) {
 	o = next = ptr->nextPtr;
 	if ((ptr->spriteNum > 15 && ptr->dataPtr == 0) || ptr->levelData0x2988 == 0) {
 		if (ptr->childPtr) {
-			o = ptr->nextPtr;
+			o = ptr->childPtr->nextPtr;
 		}
 		return o;
 	}
@@ -2844,26 +2859,26 @@ int Game::displayHintScreen(int num, int pause) {
 		g_system->setPalette(_video->_palette, 256, 6);
 		g_system->copyRect(0, 0, Video::W, Video::H, _video->_frontLayer, 256);
 		g_system->updateScreen(false);
+		do {
+			g_system->processEvents();
+			if (confirmQuit) {
+				const int currentQuit = quit;
+				if (g_system->inp.keyReleased(SYS_INP_LEFT)) {
+					quit = kQuitNo;
+				}
+				if (g_system->inp.keyReleased(SYS_INP_RIGHT)) {
+					quit = kQuitYes;
+				}
+				if (currentQuit != quit) {
+					g_system->copyRect(0, 0, Video::W, Video::H, quitBuffers[quit], 256);
+					g_system->updateScreen(false);
+				}
+			}
+			g_system->sleep(30);
+		} while (!g_system->inp.quit && !g_system->inp.keyReleased(SYS_INP_JUMP));
+		_video->_paletteNeedRefresh = true;
 	}
-	do {
-		g_system->processEvents();
-		if (confirmQuit) {
-			const int currentQuit = quit;
-			if (g_system->inp.keyReleased(SYS_INP_LEFT)) {
-				quit = kQuitNo;
-			}
-			if (g_system->inp.keyReleased(SYS_INP_RIGHT)) {
-				quit = kQuitYes;
-			}
-			if (currentQuit != quit) {
-				g_system->copyRect(0, 0, Video::W, Video::H, quitBuffers[quit], 256);
-				g_system->updateScreen(false);
-			}
-		}
-		g_system->sleep(30);
-	} while (!g_system->inp.quit && !g_system->inp.keyReleased(SYS_INP_JUMP));
 	unmuteSound();
-	_video->_paletteNeedRefresh = true;
 	return confirmQuit && quit == kQuitYes;
 }
 
@@ -4770,55 +4785,41 @@ void Game::updateWormHoleSprites() {
 	_res->decLvlSpriteDataRefCounter(&tmp);
 }
 
-bool Game::loadSetupCfg() {
+bool Game::loadSetupCfg(bool resume) {
+	_resumeGame = resume;
 	FILE *fp = _fs.openSaveFile(_setupCfg, false);
 	if (fp) {
-		const int count = fread(_setupCfgBuffer, 1, kSetupCfgSize, fp);
+		_res->readSetupCfg(fp, &_setupConfig);
 		_fs.closeFile(fp);
-		if (count != kSetupCfgSize) {
-			warning("Failed to read %d bytes from '%s', ret %d", kSetupCfgSize, _setupCfg, count);
-		} else {
-			uint8_t checksum = 0;
-			for (int i = 0; i < kSetupCfgSize - 2; ++i) {
-				checksum ^= _setupCfgBuffer[i];
-			}
-			if (checksum == _setupCfgBuffer[kSetupCfgSize - 1]) {
-				return true;
-			}
-			warning("Invalid checksum 0x%x for '%s'", checksum, _setupCfg);
-		}
+		return true;
 	}
-	memset(_setupCfgBuffer, 0, sizeof(_setupCfgBuffer));
+	memset(&_setupConfig, 0, sizeof(_setupConfig));
 	return false;
 }
 
 void Game::saveSetupCfg() {
-	// save in player #0 data
-	if (_currentLevelCheckpoint > _setupCfgBuffer[_currentLevel]) {
-		_setupCfgBuffer[_currentLevel] = _currentLevelCheckpoint;
+	if (!_resumeGame) {
+		// do not save progress when game is started from a specific level/checkpoint
+		return;
 	}
-	_setupCfgBuffer[10] = _currentLevel;
-	_setupCfgBuffer[11] = _currentScreen;
-	WRITE_LE_UINT32(_setupCfgBuffer + 12, _paf->_playedMask);
-	_setupCfgBuffer[48] = _difficulty;
-	_setupCfgBuffer[50] = _snd_masterVolume;
-	if (_currentLevel > _setupCfgBuffer[51]) {
-		_setupCfgBuffer[51] = _currentLevel;
+	const int num = _setupConfig.currentPlayer;
+	if (_currentLevelCheckpoint > _setupConfig.players[num].progress[_currentLevel]) {
+		_setupConfig.players[num].progress[_currentLevel] = _currentLevelCheckpoint;
 	}
-	uint8_t checksum = 0;
-	for (int i = 0; i < kSetupCfgSize - 2; ++i) {
-		checksum ^= _setupCfgBuffer[i];
+	_setupConfig.players[num].levelNum = _currentLevel;
+	_setupConfig.players[num].checkpointNum = _currentLevelCheckpoint;
+	_setupConfig.players[num].cutscenesMask = _paf->_playedMask;
+	_setupConfig.players[num].difficulty = _difficulty;
+	_setupConfig.players[num].volume = _snd_masterVolume;
+	if (_currentLevel > _setupConfig.players[num].currentLevel) {
+		_setupConfig.players[num].currentLevel = _currentLevel;
 	}
-	_setupCfgBuffer[kSetupCfgSize - 1] = checksum;
 	FILE *fp = _fs.openSaveFile(_setupCfg, true);
 	if (fp) {
-		const int count = fwrite(_setupCfgBuffer, 1, kSetupCfgSize, fp);
+		_res->writeSetupCfg(fp, &_setupConfig);
 		_fs.closeFile(fp);
-		if (count != kSetupCfgSize) {
-			warning("Failed to write %d bytes to '%s', ret %d", kSetupCfgSize, _setupCfg, count);
-		}
 	} else {
-		warning("Failed to save '%s'", kSetupCfgSize);
+		warning("Failed to save '%s'", _setupCfg);
 	}
 }
 

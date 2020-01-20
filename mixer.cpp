@@ -56,7 +56,6 @@ static void mixS16(int16_t *dst, const int16_t *src, int len, int panL, int panR
 void Mixer::mix(int16_t *buf, int len) {
 	// stereo s16
 	assert((len & 1) == 0);
-	assert(len == 1764 * 2);
 	if (_mixingQueueSize == 0) {
 		return;
 	}

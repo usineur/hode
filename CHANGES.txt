@@ -1,3 +1,8 @@
+* release 0.2.6
+	- added initial code for menu
+	- added initial code for PSX sounds (SPU ADPCM)
+	- fixed skull animation in 'rock' screen 18
+
 * release 0.2.5
 	- fixed spiders and worms movement
 	- several fixes for big endian platforms

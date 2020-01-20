@@ -35,7 +35,7 @@ static bool _fullscreen = false;
 static bool _widescreen = false;
 
 static const bool _runBenchmark = false;
-static const bool _runMenu = false;
+static bool _runMenu = false;
 
 static void lockAudio(int flag) {
 	if (flag) {
@@ -91,6 +91,8 @@ static int handleConfigIni(void *userdata, const char *section, const char *name
 			g->_mstDisabled = configBool(value);
 		} else if (strcmp(name, "disable_sss") == 0) {
 			g->_sssDisabled = configBool(value);
+		} else if (strcmp(name, "disable_menu") == 0) {
+			_runMenu = !configBool(value);
 		} else if (strcmp(name, "max_active_sounds") == 0) {
 			g->_playingSssObjectsMax = atoi(value);
 		} else if (strcmp(name, "difficulty") == 0) {
@@ -122,7 +124,7 @@ int main(int argc, char *argv[]) {
 	char *savePath = 0;
 	int level = 0;
 	int checkpoint = 0;
-	bool resume = true;
+	bool resume = true; // resume game from 'setup.cfg'
 
 	g_debugMask = 0; //kDebug_GAME | kDebug_RESOURCE | kDebug_SOUND | kDebug_MONSTER;
 	int cheats = 0;
@@ -192,15 +194,14 @@ int main(int argc, char *argv[]) {
 		g->benchmarkCpu();
 	}
 	g->_res->loadSetupDat();
-	if (_runMenu) {
+	g->loadSetupCfg(resume);
+	bool runGame = true;
+	if (_runMenu && resume && !g->_res->_isPsx) {
 		Menu *m = new Menu(g, g->_paf, g->_res, g->_video);
-		m->mainLoop();
+		runGame = m->mainLoop();
 		delete m;
-	} else {
-		if (g->loadSetupCfg() && resume) {
-			level = g->_setupCfgBuffer[10];
-			checkpoint = g->_setupCfgBuffer[level];
-		}
+	}
+	if (runGame) {
 		bool levelChanged = false;
 		do {
 			g->mainLoop(level, checkpoint, levelChanged);
@@ -208,7 +209,6 @@ int main(int argc, char *argv[]) {
 			checkpoint = 0;
 			levelChanged = true;
 		} while (!g_system->inp.quit && level < kLvl_test);
-		g->saveSetupCfg();
 	}
 	g_system->stopAudio();
 	g->_mix.fini();

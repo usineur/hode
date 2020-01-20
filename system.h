@@ -28,6 +28,9 @@ struct PlayerInput {
 	bool keyReleased(int keyMask) const {
 		return (prevMask & keyMask) == keyMask && (mask & keyMask) == 0;
 	}
+	void flush() {
+		prevMask = mask = 0;
+	}
 };
 
 struct AudioCallback {

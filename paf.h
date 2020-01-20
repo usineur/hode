@@ -14,12 +14,12 @@ struct PafHeader {
 	uint32_t *frameBlocksCountTable;
 	uint32_t *framesOffsetTable;
 	uint32_t *frameBlocksOffsetTable;
-	uint32_t framesCount;
-	uint32_t frameBlocksCount;
+	int32_t framesCount;
+	int32_t frameBlocksCount;
 	uint32_t startOffset;
 	uint32_t readBufferSize;
-	uint32_t maxVideoFrameBlocksCount;
-	uint32_t maxAudioFrameBlocksCount;
+	int32_t maxVideoFrameBlocksCount;
+	int32_t maxAudioFrameBlocksCount;
 };
 
 // names taken from the PSX filenames
@@ -97,7 +97,7 @@ struct PafPlayer {
 	void play(int num);
 	void unload(int num = -1);
 
-	void readPafHeader();
+	bool readPafHeader();
 	uint32_t *readPafHeaderTable(int count);
 
 	void decodeVideoFrame(const uint8_t *src);
