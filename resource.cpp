@@ -1883,18 +1883,27 @@ static void persistSetupCfg(FILE *fp, SetupConfig *config) {
 	_checksum = 0;
 	for (int i = 0; i < 4; ++i) {
 		for (int j = 0; j < 10; ++j) {
-			persistUint8<M>(fp, config->players[i].progress[j]);
+			uint8_t progress = config->players[i].progress[j];
+			persistUint8<M>(fp, progress);
 		}
-		persistUint8<M>(fp, config->players[i].levelNum);
-		persistUint8<M>(fp, config->players[i].checkpointNum);
-		persistUint32<M>(fp, config->players[i].cutscenesMask);
-		persistUint8<M>(fp, config->players[i].difficulty);
+		uint8_t levelNum = config->players[i].levelNum;
+		persistUint8<M>(fp, levelNum);
+		uint8_t checkpointNum = config->players[i].checkpointNum;
+		persistUint8<M>(fp, checkpointNum);
+		uint32_t cutscenesMask = config->players[i].cutscenesMask;
+		persistUint32<M>(fp, cutscenesMask);
+		uint8_t difficulty = config->players[i].difficulty;
+		persistUint8<M>(fp, difficulty);
 		for (int j = 0; j < 32; ++j) {
-			persistUint8<M>(fp, config->players[i].controls[j]);
+			uint8_t controls = config->players[i].controls[j];
+			persistUint8<M>(fp, controls);
 		}
-		persistUint8<M>(fp, config->players[i].stereo);
-		persistUint8<M>(fp, config->players[i].volume);
-		persistUint8<M>(fp, config->players[i].currentLevel);
+		uint8_t stereo = config->players[i].stereo;
+		persistUint8<M>(fp, stereo);
+		uint8_t volume = config->players[i].volume;
+		persistUint8<M>(fp, volume);
+		uint8_t currentLevel = config->players[i].currentLevel;
+		persistUint8<M>(fp, currentLevel);
 	}
 	persistUint8<M>(fp, config->unkD0);
 	persistUint8<M>(fp, config->currentPlayer);
