@@ -27,7 +27,7 @@ struct DatBitmapsGroup {
 	uint8_t w;
 	uint8_t h;
 	uint8_t colors;
-	uint8_t unk3; // padding to 4 bytes
+	uint8_t data;
 	uint32_t offset; // 4
 	uint32_t palette; // 8
 } PACKED; // sizeof == 12
@@ -35,6 +35,7 @@ struct DatBitmapsGroup {
 struct Menu {
 	enum {
 		kCheckpointLevelsCount = 8,
+		kCutsceneIndexesCount = 22, // kPafAnimation_cinema + 1
 		kOptionsCount = 19
 	};
 
@@ -79,6 +80,10 @@ struct Menu {
 	uint8_t _condMask;
 	uint8_t _loadCheckpointButtonState;
 	int _bitmapCircularListIndex[3];
+	int _cutsceneIndexesCount;
+	int _cutsceneNum;
+	uint8_t _loadCutsceneButtonState;
+	int _cutsceneIndexes[kCutsceneIndexesCount];
 
 	Menu(Game *g, PafPlayer *paf, Resource *res, Video *video);
 
@@ -106,13 +111,14 @@ struct Menu {
 	void handleAssignPlayer();
 	void updateBitmapsCircularList(const DatBitmapsGroup *bitmapsGroup, const uint8_t *bitmapData, int num, int count);
 	void drawBitmapsCircularList(const DatBitmapsGroup *bitmapsGroup, const uint8_t *bitmapData, int num, int count, bool updatePalette);
-	void scrollBitmapsCheckpoints(int dir);
 	void drawCheckpointScreen();
 	void drawLevelScreen();
+	void drawCutsceneScreen();
 	void handleSettingsScreen(int num);
 	void changeToOption(int num);
 	void handleLoadLevel(int num);
 	void handleLoadCheckpoint(int num);
+	void handleLoadCutscene(int num);
 	void handleOptions();
 };
 

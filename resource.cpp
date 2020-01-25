@@ -10,6 +10,9 @@
 #include "resource.h"
 #include "util.h"
 
+// menu settings and player progress
+static const char *_setupCfg = "setup.cfg";
+
 static const char *_setupDat = "SETUP.DAT";
 static const char *_setupDax = "SETUP.DAX";
 
@@ -1151,7 +1154,11 @@ void Resource::resetSssFilters() {
 void Resource::preloadSssPcmList(const SssPreloadInfoData *preloadInfoData) {
 	File *fp = _sssFile;
 	if (_isPsx) {
-		_lvlFile->seek(preloadInfoData->pcmBlockOffset * 2048, SEEK_SET);
+		const uint16_t offset = preloadInfoData->pcmBlockOffset;
+		if (offset == 0xFFFF) {
+			return;
+		}
+		_lvlFile->seek(offset * 2048, SEEK_SET);
 		fp = _lvlFile;
 	}
 	const uint8_t num = preloadInfoData->preload1Index;
@@ -1850,69 +1857,82 @@ enum {
 
 static uint8_t _checksum;
 
-template <int M>
-static void persistUint8(FILE *fp, uint8_t &val) {
-	if (M == kModeSave) {
-		fputc(val, fp);
-	} else if (M == kModeLoad) {
-		val = fgetc(fp);
-	}
+static void persistUint8(FILE *fp, const uint8_t &val) {
+	fputc(val, fp);
 	_checksum ^= val;
 }
 
-template <int M>
-static void persistUint32(FILE *fp, uint32_t &val) {
-	if (M == kModeSave) {
-		for (int i = 0; i < 4; ++i) {
-			const uint8_t b = (val >> (i * 8)) & 0xFF;
-			fputc(b, fp);
-			_checksum ^= b;
-		}
-	} else if (M == kModeLoad) {
-		val = 0;
-		for (int i = 0; i < 4; ++i) {
-			const uint8_t b = fgetc(fp);
-			val |= b << (i * 8);
-			_checksum ^= b;
-		}
+static void persistUint8(FILE *fp, uint8_t &val) {
+	val = fgetc(fp);
+	_checksum ^= val;
+}
+
+static void persistUint32(FILE *fp, const uint32_t &val) {
+	for (int i = 0; i < 4; ++i) {
+		const uint8_t b = (val >> (i * 8)) & 0xFF;
+		fputc(b, fp);
+		_checksum ^= b;
 	}
 }
 
-template <int M>
-static void persistSetupCfg(FILE *fp, SetupConfig *config) {
+static void persistUint32(FILE *fp, uint32_t &val) {
+	val = 0;
+	for (int i = 0; i < 4; ++i) {
+		const uint8_t b = fgetc(fp);
+		val |= b << (i * 8);
+		_checksum ^= b;
+	}
+}
+
+template <int M, typename T>
+static void persistSetupCfg(FILE *fp, T *config) {
 	_checksum = 0;
 	for (int i = 0; i < 4; ++i) {
 		for (int j = 0; j < 10; ++j) {
-			persistUint8<M>(fp, config->players[i].progress[j]);
+			persistUint8(fp, config->players[i].progress[j]);
 		}
-		persistUint8<M>(fp, config->players[i].levelNum);
-		persistUint8<M>(fp, config->players[i].checkpointNum);
-		persistUint32<M>(fp, config->players[i].cutscenesMask);
-		persistUint8<M>(fp, config->players[i].difficulty);
+		persistUint8(fp, config->players[i].levelNum);
+		persistUint8(fp, config->players[i].checkpointNum);
+		persistUint32(fp, config->players[i].cutscenesMask);
+		persistUint8(fp, config->players[i].difficulty);
 		for (int j = 0; j < 32; ++j) {
-			persistUint8<M>(fp, config->players[i].controls[j]);
+			persistUint8(fp, config->players[i].controls[j]);
 		}
-		persistUint8<M>(fp, config->players[i].stereo);
-		persistUint8<M>(fp, config->players[i].volume);
-		persistUint8<M>(fp, config->players[i].currentLevel);
+		persistUint8(fp, config->players[i].stereo);
+		persistUint8(fp, config->players[i].volume);
+		persistUint8(fp, config->players[i].currentLevel);
 	}
-	persistUint8<M>(fp, config->unkD0);
-	persistUint8<M>(fp, config->currentPlayer);
-	uint8_t checksum = _checksum;
-	persistUint8<M>(fp, config->unkD2);
+	persistUint8(fp, config->unkD0);
+	persistUint8(fp, config->currentPlayer);
+	const uint8_t checksum = _checksum;
+	persistUint8(fp, config->unkD2);
 	if (M == kModeSave) {
-		config->checksum = checksum;
-	}
-	persistUint8<M>(fp, config->checksum);
-	if (M == kModeLoad && checksum != config->checksum) {
-		warning("Invalid checksum 0x%x (0x%x) for 'setup.cfg'", config->checksum, checksum);
+		persistUint8(fp, checksum);
+	} else {
+		persistUint8(fp, config->checksum);
+		if (M == kModeLoad && checksum != config->checksum) {
+			warning("Invalid checksum 0x%x (0x%x) for 'setup.cfg'", config->checksum, checksum);
+		}
 	}
 }
 
-void Resource::writeSetupCfg(FILE *fp, SetupConfig *config) {
-	persistSetupCfg<kModeSave>(fp, config);
+bool Resource::writeSetupCfg(const SetupConfig *config) {
+	FILE *fp = _fs->openSaveFile(_setupCfg, true);
+	if (fp) {
+		persistSetupCfg<kModeSave>(fp, config);
+		_fs->closeFile(fp);
+		return true;
+	}
+	warning("Failed to save '%s'", _setupCfg);
+	return false;
 }
 
-void Resource::readSetupCfg(FILE *fp, SetupConfig *config) {
-	persistSetupCfg<kModeLoad>(fp, config);
+bool Resource::readSetupCfg(SetupConfig *config) {
+	FILE *fp = _fs->openSaveFile(_setupCfg, false);
+	if (fp) {
+		persistSetupCfg<kModeLoad>(fp, config);
+		_fs->closeFile(fp);
+		return true;
+	}
+	return false;
 }

@@ -35,7 +35,7 @@ static bool _fullscreen = false;
 static bool _widescreen = false;
 
 static const bool _runBenchmark = false;
-static bool _runMenu = false;
+static bool _runMenu = true;
 
 static void lockAudio(int flag) {
 	if (flag) {
@@ -60,7 +60,7 @@ static void setupAudio(Game *g) {
 
 static const char *_defaultDataPath = ".";
 
-static const char* _defaultSavePath = ".";
+static const char *_defaultSavePath = ".";
 
 static const char *_levelNames[] = {
 	"rock",
@@ -188,20 +188,25 @@ int main(int argc, char *argv[]) {
 	}
 	Game *g = new Game(dataPath ? dataPath : _defaultDataPath, savePath ? savePath : _defaultSavePath, cheats);
 	ini_parse(_configIni, handleConfigIni, g);
-	setupAudio(g);
-	g_system->init(_title, Video::W, Video::H, _fullscreen, _widescreen);
 	if (_runBenchmark) {
 		g->benchmarkCpu();
 	}
+	// load setup.dat and detects if these are PC or PSX datafiles
 	g->_res->loadSetupDat();
+	const bool isPsx = g->_res->_isPsx;
+	g_system->init(_title, Video::W, Video::H, _fullscreen, _widescreen, isPsx);
+	setupAudio(g);
 	g->loadSetupCfg(resume);
 	bool runGame = true;
-	if (_runMenu && resume && !g->_res->_isPsx) {
+	if (_runMenu && resume && !isPsx) {
 		Menu *m = new Menu(g, g->_paf, g->_res, g->_video);
 		runGame = m->mainLoop();
 		delete m;
 	}
 	if (runGame) {
+		if (isPsx) {
+			g->_video->initPsx();
+		}
 		bool levelChanged = false;
 		do {
 			g->mainLoop(level, checkpoint, levelChanged);
@@ -209,6 +214,10 @@ int main(int argc, char *argv[]) {
 			checkpoint = 0;
 			levelChanged = true;
 		} while (!g_system->inp.quit && level < kLvl_test);
+		// do not save progress when game is started from a specific level/checkpoint
+		if (resume) {
+			g->saveSetupCfg();
+		}
 	}
 	g_system->stopAudio();
 	g->_mix.fini();

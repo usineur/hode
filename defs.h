@@ -66,7 +66,7 @@ struct SetupConfig {
 	uint8_t currentPlayer; // 0xD1
 	uint8_t unkD2;
 	uint8_t checksum;
-} PACKED; // sizeof == 212
+}; // sizeof == 212
 
 struct Point8_t {
 	int8_t x;

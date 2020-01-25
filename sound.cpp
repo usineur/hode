@@ -836,9 +836,9 @@ SssObject *Game::startSoundObject(int bankIndex, int sampleIndex, uint32_t flags
 	assert(sampleNum >= 0 && sampleNum < _res->_sssHdr.samplesDataCount);
 	SssSample *sample = &_res->_sssSamplesData[sampleNum];
 
-	// original loads the PCM data in a seperate thread
+	// original preloads PCM when changing screens
 	SssPcm *pcm = &_res->_sssPcmTable[sample->pcm];
-	if (!pcm->ptr) {
+	if (!pcm->ptr && !_res->_isPsx) {
 		_res->loadSssPcm(_res->_sssFile, pcm);
 	}
 

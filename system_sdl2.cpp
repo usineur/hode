@@ -15,8 +15,6 @@ static const char *kIconBmp = "icon.bmp";
 static int _scalerMultiplier = 3;
 static const Scaler *_scaler = &scaler_xbr;
 
-static const int _pixelFormat = SDL_PIXELFORMAT_RGB888;
-
 static const struct {
 	const char *name;
 	const Scaler *scaler;
@@ -43,6 +41,7 @@ struct System_SDL2 : System {
 	SDL_Window *_window;
 	SDL_Renderer *_renderer;
 	SDL_Texture *_texture;
+	SDL_Texture *_backgroundTexture; // YUV (PSX)
 	int _texW, _texH;
 	SDL_PixelFormat *_fmt;
 	uint32_t _pal[256];
@@ -58,12 +57,13 @@ struct System_SDL2 : System {
 
 	System_SDL2();
 	virtual ~System_SDL2() {}
-	virtual void init(const char *title, int w, int h, bool fullscreen, bool widescreen);
+	virtual void init(const char *title, int w, int h, bool fullscreen, bool widescreen, bool yuv);
 	virtual void destroy();
 	virtual void setScaler(const char *name, int multiplier);
 	virtual void setGamma(float gamma);
 	virtual void setPalette(const uint8_t *pal, int n, int depth);
 	virtual void copyRect(int x, int y, int w, int h, const uint8_t *buf, int pitch);
+	virtual void copyYuv(int w, int h, const uint8_t *y, int ypitch, const uint8_t *u, int upitch, const uint8_t *v, int vpitch);
 	virtual void fillRect(int x, int y, int w, int h, uint8_t color);
 	virtual void copyRectWidescreen(int w, int h, const uint8_t *buf, const uint8_t *pal);
 	virtual void shakeScreen(int dx, int dy);
@@ -82,7 +82,7 @@ struct System_SDL2 : System {
 	void addKeyMapping(int key, uint8_t mask);
 	void setupDefaultKeyMappings();
 	void updateKeys(PlayerInput *inp);
-	void prepareScaledGfx(const char *caption, bool fullscreen, bool widescreen);
+	void prepareScaledGfx(const char *caption, bool fullscreen, bool widescreen, bool yuv);
 };
 
 static System_SDL2 system_sdl2;
@@ -90,14 +90,14 @@ System *const g_system = &system_sdl2;
 
 System_SDL2::System_SDL2() :
 	_offscreenLut(0), _offscreenRgb(0),
-	_window(0), _renderer(0), _texture(0), _fmt(0), _widescreenTexture(0),
+	_window(0), _renderer(0), _texture(0), _backgroundTexture(0), _fmt(0), _widescreenTexture(0),
 	_controller(0), _joystick(0) {
 	for (int i = 0; i < 256; ++i) {
 		_gammaLut[i] = i;
 	}
 }
 
-void System_SDL2::init(const char *title, int w, int h, bool fullscreen, bool widescreen) {
+void System_SDL2::init(const char *title, int w, int h, bool fullscreen, bool widescreen, bool yuv) {
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
 	SDL_ShowCursor(SDL_DISABLE);
 	setupDefaultKeyMappings();
@@ -117,7 +117,7 @@ void System_SDL2::init(const char *title, int w, int h, bool fullscreen, bool wi
 		error("System_SDL2::init() Unable to allocate RGB offscreen buffer");
 	}
 	memset(_offscreenLut, 0, offscreenSize);
-	prepareScaledGfx(title, fullscreen, widescreen);
+	prepareScaledGfx(title, fullscreen, widescreen, yuv);
 	_joystick = 0;
 	_controller = 0;
 	const int count = SDL_NumJoysticks();
@@ -157,6 +157,10 @@ void System_SDL2::destroy() {
 	if (_widescreenTexture) {
 		SDL_DestroyTexture(_widescreenTexture);
 		_widescreenTexture = 0;
+	}
+	if (_backgroundTexture) {
+		SDL_DestroyTexture(_backgroundTexture);
+		_backgroundTexture = 0;
 	}
 	if (_renderer) {
 		SDL_DestroyRenderer(_renderer);
@@ -315,6 +319,9 @@ void System_SDL2::setPalette(const uint8_t *pal, int n, int depth) {
 		b = _gammaLut[b];
 		_pal[i] = SDL_MapRGB(_fmt, r, g, b);
 	}
+	if (_backgroundTexture) {
+		_pal[0] = 0;
+	}
 }
 
 void System_SDL2::copyRect(int x, int y, int w, int h, const uint8_t *buf, int pitch) {
@@ -323,6 +330,12 @@ void System_SDL2::copyRect(int x, int y, int w, int h, const uint8_t *buf, int p
 		memcpy(_offscreenLut + y * _screenW + x, buf, w);
 		buf += pitch;
 		++y;
+	}
+}
+
+void System_SDL2::copyYuv(int w, int h, const uint8_t *y, int ypitch, const uint8_t *u, int upitch, const uint8_t *v, int vpitch) {
+	if (_backgroundTexture) {
+		SDL_UpdateYUVTexture(_backgroundTexture, 0, y, ypitch, u, upitch, v, vpitch);
 	}
 }
 
@@ -390,6 +403,7 @@ void System_SDL2::updateScreen(bool drawWidescreen) {
 	SDL_UnlockTexture(_texture);
 
 	SDL_RenderClear(_renderer);
+
 	if (_widescreenTexture) {
 		if (drawWidescreen) {
 			SDL_RenderCopy(_renderer, _widescreenTexture, 0, 0);
@@ -402,8 +416,14 @@ void System_SDL2::updateScreen(bool drawWidescreen) {
 		r.w = _texW;
 		r.y += (r.h - _texH) / 2;
 		r.h = _texH;
+		if (_backgroundTexture) {
+			SDL_RenderCopy(_renderer, _backgroundTexture, 0, &r);
+		}
 		SDL_RenderCopy(_renderer, _texture, 0, &r);
 	} else {
+		if (_backgroundTexture) {
+			SDL_RenderCopy(_renderer, _backgroundTexture, 0, 0);
+		}
 		SDL_RenderCopy(_renderer, _texture, 0, 0);
 	}
 	SDL_RenderPresent(_renderer);
@@ -703,7 +723,7 @@ void System_SDL2::updateKeys(PlayerInput *inp) {
 	inp->mask |= pad.mask;
 }
 
-void System_SDL2::prepareScaledGfx(const char *caption, bool fullscreen, bool widescreen) {
+void System_SDL2::prepareScaledGfx(const char *caption, bool fullscreen, bool widescreen, bool yuv) {
 	int flags = 0;
 	if (fullscreen) {
 		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
@@ -723,11 +743,20 @@ void System_SDL2::prepareScaledGfx(const char *caption, bool fullscreen, bool wi
 	_renderer = SDL_CreateRenderer(_window, -1, SDL_RENDERER_ACCELERATED);
 	SDL_RenderSetLogicalSize(_renderer, windowW, windowH);
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
-	_texture = SDL_CreateTexture(_renderer, _pixelFormat, SDL_TEXTUREACCESS_STREAMING, _texW, _texH);
+
+	const int pixelFormat = yuv ? SDL_PIXELFORMAT_RGBA8888 : SDL_PIXELFORMAT_RGB888;
+	_texture = SDL_CreateTexture(_renderer, pixelFormat, SDL_TEXTUREACCESS_STREAMING, _texW, _texH);
 	if (widescreen) {
-		_widescreenTexture = SDL_CreateTexture(_renderer, _pixelFormat, SDL_TEXTUREACCESS_STREAMING, _screenW, _screenH);
+		_widescreenTexture = SDL_CreateTexture(_renderer, pixelFormat, SDL_TEXTUREACCESS_STREAMING, _screenW, _screenH);
 	} else {
 		_widescreenTexture = 0;
 	}
-	_fmt = SDL_AllocFormat(_pixelFormat);
+	if (yuv) {
+		_backgroundTexture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, _screenW, _screenH);
+		// the game texture is drawn on top
+		SDL_SetTextureBlendMode(_texture, SDL_BLENDMODE_BLEND);
+	} else {
+		_backgroundTexture = 0;
+	}
+	_fmt = SDL_AllocFormat(pixelFormat);
 }

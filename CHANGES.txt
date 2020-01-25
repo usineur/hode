@@ -1,6 +1,11 @@
+* release 0.2.7
+	- added 'projection' submenu
+	- added PSX backgrounds (MDEC)
+	- fixed menu on big endian platforms
+
 * release 0.2.6
 	- added initial code for menu
-	- added initial code for PSX sounds (SPU ADPCM)
+	- added PSX sounds (SPU ADPCM)
 	- fixed skull animation in 'rock' screen 18
 
 * release 0.2.5
