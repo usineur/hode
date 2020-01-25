@@ -9,7 +9,7 @@
 #include "video.h"
 
 enum {
-	kTitleScreen_AssignPlayer,
+	kTitleScreen_AssignPlayer = 0,
 	kTitleScreen_Play,
 	kTitleScreen_Options,
 	kTitleScreen_Quit
@@ -89,12 +89,14 @@ void Menu::loadData() {
 	if (version == 10) {
 
 		_titleSprites = (DatSpritesGroup *)(ptr + ptrOffset);
-		_titleSprites->size = le16toh(_titleSprites->size);
+		_titleSprites->size = le32toh(_titleSprites->size);
+		_titleSprites->count = le16toh(_titleSprites->count);
 		ptrOffset += sizeof(DatSpritesGroup) + _titleSprites->size;
 		_titleSprites->firstFrameOffset = 0;
 
 		_playerSprites = (DatSpritesGroup *)(ptr + ptrOffset);
-		_playerSprites->size = le16toh(_playerSprites->size);
+		_playerSprites->size = le32toh(_playerSprites->size);
+		_playerSprites->count = le16toh(_playerSprites->count);
 		ptrOffset += sizeof(DatSpritesGroup) + _playerSprites->size;
 		_playerSprites->firstFrameOffset = 0;
 
@@ -115,9 +117,7 @@ void Menu::loadData() {
 		_cutscenesBitmaps = (DatBitmapsGroup *)(ptr + ptrOffset);
 		ptrOffset += cutscenesCount * sizeof(DatBitmapsGroup);
 		_cutscenesBitmapsData = ptr + ptrOffset;
-		for (int i = 0; i < cutscenesCount; ++i) {
-			ptrOffset += _cutscenesBitmaps[i].w * _cutscenesBitmaps[i].h + 768;
-		}
+		ptrOffset += readBitmapsGroup(cutscenesCount, _cutscenesBitmaps, ptrOffset);
 
 		for (int i = 0; i < kCheckpointLevelsCount; ++i) {
 			DatBitmapsGroup *bitmapsGroup = (DatBitmapsGroup *)(ptr + ptrOffset);
@@ -167,10 +167,8 @@ void Menu::loadData() {
 		const int cutscenesCount = _res->_datHdr.cutscenesCount;
 		_cutscenesBitmaps = (DatBitmapsGroup *)(ptr + hdrOffset);
 		_cutscenesBitmapsData = ptr + ptrOffset;
-		for (int i = 0; i < cutscenesCount; ++i) {
-			hdrOffset += sizeof(DatBitmapsGroup);
-			ptrOffset += _cutscenesBitmaps[i].w * _cutscenesBitmaps[i].h + 768;
-		}
+		hdrOffset += cutscenesCount * sizeof(DatBitmapsGroup);
+		ptrOffset += readBitmapsGroup(cutscenesCount, _cutscenesBitmaps, ptrOffset);
 
 		for (int i = 0; i < kCheckpointLevelsCount; ++i) {
 			DatBitmapsGroup *bitmapsGroup = (DatBitmapsGroup *)(ptr + hdrOffset);
@@ -193,13 +191,15 @@ void Menu::loadData() {
 	if (version == 11) {
 
 		_titleSprites = (DatSpritesGroup *)(ptr + ptrOffset);
-		_titleSprites->size = le16toh(_titleSprites->size);
+		_titleSprites->size = le32toh(_titleSprites->size);
 		ptrOffset += sizeof(DatSpritesGroup) + _titleSprites->size;
+		_titleSprites->count = le16toh(_titleSprites->count);
 		_titleSprites->firstFrameOffset = 0;
 
 		_playerSprites = (DatSpritesGroup *)(ptr + ptrOffset);
-		_playerSprites->size = le16toh(_playerSprites->size);
+		_playerSprites->size = le32toh(_playerSprites->size);
 		ptrOffset += sizeof(DatSpritesGroup) + _playerSprites->size;
+		_playerSprites->count = le16toh(_playerSprites->count);
 		_playerSprites->firstFrameOffset = 0;
 
 		_optionData = ptr + ptrOffset;
@@ -221,7 +221,8 @@ void Menu::loadData() {
 	_iconsSpritesData = ptr + ptrOffset;
 	const uint32_t baseOffset = ptrOffset;
 	for (int i = 0; i < iconsCount; ++i) {
-		_iconsSprites[i].size = le16toh(_iconsSprites[i].size);
+		_iconsSprites[i].size = le32toh(_iconsSprites[i].size);
+		_iconsSprites[i].count = le16toh(_iconsSprites[i].count);
 		_iconsSprites[i].firstFrameOffset = ptrOffset - baseOffset;
 		ptrOffset += _iconsSprites[i].size;
 	}
@@ -235,8 +236,10 @@ void Menu::loadData() {
 		for (int i = 0; i < _optionsButtonSpritesCount; ++i) {
 			WRITE_LE_UINT32(_res->_menuBuffer0 + hdrOffset, ptrOffset - baseOffset);
 			DatSpritesGroup *spritesGroup = (DatSpritesGroup *)(ptr + hdrOffset + 4);
+			spritesGroup->size = le32toh(spritesGroup->size);
+			spritesGroup->count = le16toh(spritesGroup->count);
 			hdrOffset += 20;
-			ptrOffset += le16toh(spritesGroup->size);
+			ptrOffset += spritesGroup->size;
 		}
 	} else {
 		_optionsButtonSpritesData = 0;
@@ -283,7 +286,8 @@ int Menu::getSoundNum(int num) const {
 			}
 			p += count2 * 2;
 		}
-		assert((p - _soundData) == _res->_datHdr.soundDataSize);
+		// sound not found
+		assert((uint32_t)(p - _soundData) == _res->_datHdr.soundDataSize);
 	}
 	return -1;
 }
@@ -610,29 +614,27 @@ void Menu::handleAssignPlayer() {
 }
 
 void Menu::updateBitmapsCircularList(const DatBitmapsGroup *bitmapsGroup, const uint8_t *bitmapData, int num, int count) {
-	if (num == 0) {
-		if (count < 3) {
-			_bitmapCircularListIndex[0] = -1;
-		} else {
-			_bitmapCircularListIndex[0] = count - 1;
-		}
-		_bitmapCircularListIndex[1] = 0;
-		_bitmapCircularListIndex[2] = 1;
-	} else if (num == 1) {
-		_bitmapCircularListIndex[0] = 0;
-		_bitmapCircularListIndex[1] = 1;
-		_bitmapCircularListIndex[2] = 2;
+	_bitmapCircularListIndex[1] = num;
+	if (count > 1) {
+		_bitmapCircularListIndex[2] = (num + 1) % count;
 	} else {
-		_bitmapCircularListIndex[0] = num - 1;
-		_bitmapCircularListIndex[1] = num;
-		if (num == count - 1) {
-			_bitmapCircularListIndex[2] = 0;
-		} else {
-			_bitmapCircularListIndex[2] = num + 1;
+		_bitmapCircularListIndex[2] = -1;
+	}
+	if (count > 2) {
+		_bitmapCircularListIndex[0] = (num + count - 1) % count;
+	} else {
+		_bitmapCircularListIndex[0] = -1;
+	}
+	if (bitmapsGroup == _cutscenesBitmaps) {
+		for (int i = 0; i < 3; ++i) {
+			const int num = _bitmapCircularListIndex[i];
+			if (num != -1) {
+				_bitmapCircularListIndex[i] = _cutsceneIndexes[num];
+			}
 		}
 	}
 	for (int i = 0; i < 3; ++i) {
-		if (_bitmapCircularListIndex[i] != -1 && _bitmapCircularListIndex[i] < count) {
+		if (_bitmapCircularListIndex[i] != -1) {
 			const DatBitmapsGroup *bitmap = &bitmapsGroup[_bitmapCircularListIndex[i]];
 			memcpy(_paletteBuffer + (105 + 50 * i) * 3, bitmapData + bitmap->palette, 50 * 3);
 		}
@@ -648,28 +650,9 @@ void Menu::drawBitmapsCircularList(const DatBitmapsGroup *bitmapsGroup, const ui
 	updateBitmapsCircularList(bitmapsGroup, bitmapData, num, count);
 	static const int xPos[] = { -60, 68, 196 };
 	for (int i = 0; i < 3; ++i) {
-		if (_bitmapCircularListIndex[i] != -1 && _bitmapCircularListIndex[i] < count) {
+		if (_bitmapCircularListIndex[i] != -1) {
 			const DatBitmapsGroup *bitmap = &bitmapsGroup[_bitmapCircularListIndex[i]];
 			drawBitmap(bitmap, bitmapData + bitmap->offset, xPos[i], 14, bitmap->w, bitmap->h, 105 + 50 * i);
-		}
-	}
-}
-
-void Menu::scrollBitmapsCheckpoints(int dir) {
-	decodeLZW(_optionsBitmapData[_optionNum], _video->_frontLayer);
-	drawSpriteNextFrame(_iconsSprites, 5, 0, 0);
-	drawSpritePos(&_iconsSprites[0], _iconsSpritesData, 119, 108, (_checkpointNum + 1) / 10);
-	drawSpritePos(&_iconsSprites[0], _iconsSpritesData, 127, 108, (_checkpointNum + 1) % 10);
-	drawSpriteNextFrame(_iconsSprites, (_loadCheckpointButtonState != 0) ? 8 : 7, 0, 0);
-	if (dir) {
-		++_checkpointNum;
-		if (_checkpointNum >= _lastLevelCheckpointNum[_levelNum]) {
-			_checkpointNum = 0;
-		}
-	} else {
-		--_checkpointNum;
-		if (_checkpointNum < 0) {
-			_checkpointNum = _lastLevelCheckpointNum[_levelNum] - 1;
 		}
 	}
 }
@@ -697,6 +680,22 @@ void Menu::drawLevelScreen() {
 	drawBitmap(bitmap, _levelsBitmapsData + bitmap->offset, 23, 10, bitmap->w, bitmap->h, 192);
 	drawSpriteNextFrame(_iconsSprites, 4, 0, 0);
 	drawSpriteNextFrame(_iconsSprites, (_loadLevelButtonState != 0) ? 3 : 2, 0, 0);
+	refreshScreen(false);
+}
+
+void Menu::drawCutsceneScreen() {
+	decodeLZW(_optionsBitmapData[_optionNum], _video->_frontLayer);
+	drawBitmapsCircularList(_cutscenesBitmaps, _cutscenesBitmapsData, _cutsceneNum, _cutsceneIndexesCount, false);
+	drawSpriteNextFrame(_iconsSprites, 10, 0, 0);
+	drawSpritePos(&_iconsSprites[0], _iconsSpritesData, 119, 108, (_cutsceneNum + 1) / 10);
+	drawSpritePos(&_iconsSprites[0], _iconsSpritesData, 127, 108, (_cutsceneNum + 1) % 10);
+	const int num = _loadCutsceneButtonState;
+	if (num > 1 && num < 7) {
+		drawSprite(&_iconsSprites[14], _iconsSpritesData, num - 2);
+	} else {
+		drawSpriteNextFrame(_iconsSprites, (num != 0) ? 13 : 12, 0, 0);
+	}
+	drawSpriteNextFrame(_iconsSprites, 11, 0, 0);
 	refreshScreen(false);
 }
 
@@ -737,6 +736,9 @@ void Menu::changeToOption(int num) {
 		memcpy(_paletteBuffer, _optionsBitmapData[0] + _optionsBitmapSize[0], 768);
 		handleSettingsScreen(5);
 	} else if (_optionNum == kMenu_Cutscenes + 1) {
+		_loadCutsceneButtonState = 0;
+		_cutsceneNum = 0;
+		drawCutsceneScreen();
 	} else if (_optionsBitmapSize[_optionNum] != 0) {
 		decodeLZW(_optionsBitmapData[_optionNum], _video->_frontLayer);
 		memcpy(_paletteBuffer, _optionsBitmapData[_optionNum] + _optionsBitmapSize[_optionNum], 256 * 3);
@@ -827,20 +829,75 @@ void Menu::handleLoadCheckpoint(int num) {
 	} else if (num == 14) {
 		if (_lastLevelCheckpointNum[_levelNum] > 2 || _loadCheckpointButtonState == 0) {
 			playSound(0x70);
-			scrollBitmapsCheckpoints(1);
+			++_checkpointNum;
+			if (_checkpointNum >= _lastLevelCheckpointNum[_levelNum]) {
+				_checkpointNum = 0;
+			}
 		}
 	} else if (num == 15) {
 		if (_lastLevelCheckpointNum[_levelNum] > 2 || _loadCheckpointButtonState == 1) {
 			playSound(0x70);
-			scrollBitmapsCheckpoints(0);
+			--_checkpointNum;
+			if (_checkpointNum < 0) {
+				_checkpointNum = _lastLevelCheckpointNum[_levelNum] - 1;
+			}
 		}
 	}
 	drawCheckpointScreen();
 }
 
+void Menu::handleLoadCutscene(int num) {
+	const uint8_t *data = &_optionData[num * 8];
+	num = data[5];
+	if (num == 6) {
+		if (_loadCutsceneButtonState != 0) {
+			playSound(0x70);
+			_loadCutsceneButtonState = 0;
+		}
+	} else if (num == 7) {
+		if (_loadCutsceneButtonState == 0) {
+			playSound(0x70);
+			_loadCutsceneButtonState = 1;
+		}
+	} else if (num == 8) {
+		if (_loadCutsceneButtonState != 0) {
+			playSound(0x80);
+			_condMask = 0x80;
+		} else {
+			playSound(0x78);
+			_loadCutsceneButtonState = 2;
+			const int num = _cutscenesBitmaps[_cutsceneIndexes[_cutsceneNum]].data;
+			_paf->play(num);
+			if (num == kPafAnimation_end) {
+				_paf->play(kPafAnimation_cinema);
+			}
+			playSound(0x98);
+			playSound(0xA0);
+			_loadCutsceneButtonState = 0;
+		}
+	} else if (num == 9) {
+		if (_cutsceneIndexesCount > 2 || _loadCutsceneButtonState == 0) {
+			playSound(0x70);
+			++_cutsceneNum;
+			if (_cutsceneNum >= _cutsceneIndexesCount) {
+				_cutsceneNum = 0;
+			}
+		}
+	} else if (num == 10) {
+		if (_cutsceneIndexesCount > 2 || _loadCutsceneButtonState == 1) {
+			playSound(0x70);
+			--_cutsceneNum;
+			if (_cutsceneNum < 0) {
+				_cutsceneNum = _cutsceneIndexesCount - 1;
+			}
+		}
+	}
+	drawCutsceneScreen();
+}
+
 static bool matchInput(uint8_t menu, uint8_t type, uint8_t mask, const PlayerInput &inp, uint8_t optionMask) {
 	if (type != 0) {
-		if (menu == kMenu_Cutscenes || menu == kMenu_Settings) {
+		if (menu == kMenu_Settings) {
 			// not implemented yet
 			return false;
 		}
@@ -878,6 +935,17 @@ void Menu::handleOptions() {
 	if (_lastLevelNum >= _res->_datHdr.levelsCount) {
 		_lastLevelNum = _res->_datHdr.levelsCount;
 	}
+	_cutsceneIndexesCount = 0;
+	const uint32_t playedCutscenesMask = _config->players[_config->currentPlayer].cutscenesMask;
+	for (int i = 0; i < _res->_datHdr.cutscenesCount; ++i) {
+		if ((playedCutscenesMask & (1 << i)) != 0) {
+			_cutsceneIndexes[_cutsceneIndexesCount] = i;
+			++_cutsceneIndexesCount;
+		}
+	}
+	if (_cutsceneIndexesCount > _res->_datHdr.cutscenesCount) {
+		_cutsceneIndexesCount = _res->_datHdr.cutscenesCount;
+	}
 	_optionNum = kMenu_Settings;
 	changeToOption(0);
 	_condMask = 0;
@@ -887,6 +955,7 @@ void Menu::handleOptions() {
 			_optionNum = -1;
 			break;
 		}
+		// get transition from inputs and menu return code (_condMask)
 		int num = -1;
 		for (int i = 0; i < _res->_datHdr.menusCount; ++i) {
 			const uint8_t *data = _optionData + i * 8;
@@ -918,6 +987,9 @@ void Menu::handleOptions() {
 		case 8:
 			changeToOption(num);
 			break;
+		case 9:
+			handleLoadCutscene(num);
+			break;
 		case 10:
 			handleLoadLevel(num);
 			break;
@@ -931,8 +1003,8 @@ void Menu::handleOptions() {
 			warning("Unhandled option %d %d", _optionNum, data[4]);
 			break;
 		}
-		if (_optionNum == 16 || _optionNum == 1 || _optionNum == 3 || _optionNum == kMenu_ResumeGame) {
-			// _g->saveSetupCfg();
+		if (_optionNum == kMenu_Quit + 1 || _optionNum == kMenu_NewGame + 1 || _optionNum == kMenu_CurrentGame + 1 || _optionNum == kMenu_ResumeGame) {
+			// 'setup.cfg' is saved when exiting the main loop
 			break;
 		}
 	}

@@ -59,8 +59,10 @@ FILE *FileSystem::openSaveFile(const char *filename, bool write) {
 	return fopen(path, write ? "wb" : "rb");
 }
 
-void FileSystem::closeFile(FILE *fp) {
+int FileSystem::closeFile(FILE *fp) {
+	const int err = ferror(fp);
 	fclose(fp);
+	return err;
 }
 
 void FileSystem::addFilePath(const char *path) {

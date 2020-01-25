@@ -1,6 +1,6 @@
 
 hode README
-Release version: 0.2.6
+Release version: 0.2.7
 -------------------------------------------------------------------------------
 
 
@@ -48,10 +48,10 @@ Game progress is saved in 'setup.cfg', similar to the original engine.
 Status:
 -------
 
-Settings and projection menus are not implemented.
+Settings submenu is not implemented.
 
-PSX version datafiles can be used but background screens and overlays (MDEC)
-are not decoded yet.
+PSX version datafiles can be used but background overlays (MDEC) are not
+decoded and menu is unavailable.
 
 
 Credits:

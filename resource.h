@@ -661,8 +661,8 @@ struct Resource {
 	const MstScreenArea *findMstCodeForPos(int num, int xPos, int yPos) const;
 	void flagMstCodeForPos(int num, uint8_t value);
 
-	void writeSetupCfg(FILE *fp, SetupConfig *config);
-	void readSetupCfg(FILE *fp, SetupConfig *config);
+	bool writeSetupCfg(const SetupConfig *config);
+	bool readSetupCfg(SetupConfig *config);
 };
 
 #endif // RESOURCE_H__

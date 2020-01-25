@@ -13,9 +13,6 @@
 #include "util.h"
 #include "video.h"
 
-// menu settings and player progress
-static const char *_setupCfg = "setup.cfg";
-
 // starting level cutscene number
 static const uint8_t _cutscenes[] = { 0, 2, 4, 5, 6, 8, 10, 14, 19 };
 
@@ -319,7 +316,7 @@ void Game::setupBackgroundBitmap() {
 		playSound(lvl->backgroundBitmapId, 0, 0, 3);
 	}
 	if (_res->_isPsx) {
-		assert(READ_LE_UINT16(pic + 4) == 0x3800);
+		_video->decodeBackgroundPsx(pic + 2);
 	} else {
 		decodeLZW(pic, _video->_backgroundLayer);
 	}
@@ -1310,13 +1307,14 @@ void Game::updateScreenHelper(int num) {
 				if (_res->_isPsx) {
 					p->framesCount = READ_LE_UINT32(data); data += 4;
 					ptr->currentSound = READ_LE_UINT32(data); data += 4;
+					p->nextSpriteData = READ_LE_UINT16(data + 6) + data + 6;
 				} else {
 					p->framesCount = READ_LE_UINT16(data); data += 2;
 					ptr->currentSound = READ_LE_UINT16(data); data += 2;
+					p->nextSpriteData = READ_LE_UINT16(data + 4) + data + 4;
 				}
 				p->currentSpriteData = p->otherSpriteData = data;
 				p->currentFrame = 0;
-				p->nextSpriteData = READ_LE_UINT16(data + 4) + data + 4;
 			}
 			break;
 		case 1: {
@@ -2107,6 +2105,8 @@ void Game::mainLoop(int level, int checkpoint, bool levelChanged) {
 		}
 		_paf->_playedMask = _setupConfig.players[num].cutscenesMask;
 		debug(kDebug_GAME, "Restart at level %d checkpoint %d cutscenes 0x%x", level, checkpoint, _paf->_playedMask);
+		// resume once, on the starting level
+		_resumeGame = false;
 	}
 	_video->_font = _res->_fontBuffer;
 	assert(level < kLvl_test);
@@ -2166,7 +2166,6 @@ void Game::mainLoop(int level, int checkpoint, bool levelChanged) {
 		g_system->sleep(delay);
 	} while (!_endLevel);
 	_animBackgroundDataCount = 0;
-	saveSetupCfg();
 	callLevel_terminate();
 }
 
@@ -2248,36 +2247,42 @@ void Game::updateLvlObjectLists() {
 }
 
 LvlObject *Game::updateAnimatedLvlObjectType0(LvlObject *ptr) {
+	const bool isPsx = _res->_isPsx;
+	const int soundDataLen = isPsx ? sizeof(uint32_t) : sizeof(uint16_t);
 	AnimBackgroundData *vg = (AnimBackgroundData *)getLvlObjectDataPtr(ptr, kObjectDataTypeAnimBackgroundData);
-	const uint8_t *vf = vg->currentSpriteData + 2;
+	const uint8_t *data = vg->currentSpriteData + soundDataLen;
 	if (_res->_currentScreenResourceNum == ptr->screenNum) {
 		if (ptr->currentSound != 0xFFFF) {
 			playSound(ptr->currentSound, ptr, 0, 3);
 			ptr->currentSound = 0xFFFF;
 		}
-		Sprite *spr = _spritesNextPtr;
-		if (spr && READ_LE_UINT16(vf + 2) > 8) {
-			spr->xPos = vf[0];
-			spr->yPos = vf[1];
-			spr->w = READ_LE_UINT16(vf + 4);
-			spr->h = READ_LE_UINT16(vf + 6);
-			spr->bitmapBits = vf + 8;
-			spr->num = ptr->flags2;
-			const int index = spr->num & 0x1F;
-			_spritesNextPtr = spr->nextPtr;
-			spr->nextPtr = _typeSpritesList[index];
-			_typeSpritesList[index] = spr;
+		if (isPsx) {
+			_video->decodeTilePsx(data);
+		} else {
+			Sprite *spr = _spritesNextPtr;
+			if (spr && READ_LE_UINT16(data + 2) > 8) {
+				spr->xPos = data[0];
+				spr->yPos = data[1];
+				spr->w = READ_LE_UINT16(data + 4);
+				spr->h = READ_LE_UINT16(data + 6);
+				spr->bitmapBits = data + 8;
+				spr->num = ptr->flags2;
+				const int index = spr->num & 0x1F;
+				_spritesNextPtr = spr->nextPtr;
+				spr->nextPtr = _typeSpritesList[index];
+				_typeSpritesList[index] = spr;
+			}
 		}
 	}
 	int16_t soundNum = -1;
-	const int len = READ_LE_UINT16(vf + 2);
-	const uint8_t *nextSpriteData = len + vf + 2;
+	const int len = READ_LE_UINT16(data + 2);
+	const uint8_t *nextSpriteData = len + data + 2;
 	switch (ptr->objectUpdateType - 1) {
 	case 6:
 		vg->currentSpriteData = vg->nextSpriteData;
 		if (vg->currentFrame == 0) {
 			vg->currentFrame = 1;
-			soundNum = READ_LE_UINT16(vg->nextSpriteData);
+			soundNum = isPsx ? READ_LE_UINT32(vg->nextSpriteData) : READ_LE_UINT16(vg->nextSpriteData);
 		}
 		ptr->objectUpdateType = 4;
 		break;
@@ -2290,48 +2295,50 @@ LvlObject *Game::updateAnimatedLvlObjectType0(LvlObject *ptr) {
 		++vg->currentFrame;
 		if (vg->currentFrame < vg->framesCount) {
 			vg->currentSpriteData = nextSpriteData;
-			soundNum = READ_LE_UINT16(nextSpriteData);
 		} else {
 			vg->currentFrame = 0;
 			vg->currentSpriteData = vg->otherSpriteData;
 			ptr->objectUpdateType = 1;
-			soundNum = READ_LE_UINT16(vg->currentSpriteData);
 		}
+		soundNum = isPsx ? READ_LE_UINT32(vg->currentSpriteData) : READ_LE_UINT16(vg->currentSpriteData);
 		break;
 	case 4:
 		++vg->currentFrame;
 		if (vg->currentFrame < vg->framesCount) { // bugfix: original uses '<=' (out of bounds)
 			vg->currentSpriteData = nextSpriteData;
-			soundNum = READ_LE_UINT16(nextSpriteData);
 		} else {
 			vg->currentFrame = 0;
 			vg->currentSpriteData = vg->otherSpriteData;
 			ptr->objectUpdateType = 1;
-			soundNum = READ_LE_UINT16(vg->currentSpriteData);
 		}
+		soundNum = isPsx ? READ_LE_UINT32(vg->currentSpriteData) : READ_LE_UINT16(vg->currentSpriteData);
 		break;
 	case 2:
 		while (vg->currentFrame < vg->framesCount - 2) {
 			++vg->currentFrame;
 			vg->currentSpriteData = nextSpriteData;
-			nextSpriteData += 2;
+			nextSpriteData += soundDataLen;
 			const int len = READ_LE_UINT16(nextSpriteData + 2);
 			nextSpriteData += len + 2;
 		}
-		nextSpriteData = vg->currentSpriteData + 2;
+		data = vg->currentSpriteData + soundDataLen;
 		if (_res->_currentScreenResourceNum == ptr->screenNum) {
-			Sprite *spr = _spritesNextPtr;
-			if (spr && READ_LE_UINT16(nextSpriteData + 2) > 8) {
-				spr->w = READ_LE_UINT16(nextSpriteData + 4);
-				spr->h = READ_LE_UINT16(nextSpriteData + 6);
-				spr->bitmapBits = nextSpriteData + 8;
-				spr->xPos = nextSpriteData[0];
-				spr->yPos = nextSpriteData[1];
-				_spritesNextPtr = spr->nextPtr;
-				spr->num = ptr->flags2;
-				const int index = spr->num & 0x1F;
-				spr->nextPtr = _typeSpritesList[index];
-				_typeSpritesList[index] = spr;
+			if (isPsx) {
+				_video->decodeTilePsx(data);
+			} else {
+				Sprite *spr = _spritesNextPtr;
+				if (spr && READ_LE_UINT16(data + 2) > 8) {
+					spr->w = READ_LE_UINT16(data + 4);
+					spr->h = READ_LE_UINT16(data + 6);
+					spr->bitmapBits = data + 8;
+					spr->xPos = data[0];
+					spr->yPos = data[1];
+					_spritesNextPtr = spr->nextPtr;
+					spr->num = ptr->flags2;
+					const int index = spr->num & 0x1F;
+					spr->nextPtr = _typeSpritesList[index];
+					_typeSpritesList[index] = spr;
+				}
 			}
 		}
 		ptr->objectUpdateType = 1;
@@ -2340,7 +2347,7 @@ LvlObject *Game::updateAnimatedLvlObjectType0(LvlObject *ptr) {
 		++vg->currentFrame;
 		if (vg->currentFrame < vg->framesCount - 1) {
 			vg->currentSpriteData = nextSpriteData;
-			soundNum = READ_LE_UINT16(vg->currentSpriteData);
+			soundNum = isPsx ? READ_LE_UINT32(vg->currentSpriteData) : READ_LE_UINT16(vg->currentSpriteData);
 		} else {
 			if (vg->currentFrame > vg->framesCount) {
 				vg->currentFrame = vg->framesCount;
@@ -2352,7 +2359,7 @@ LvlObject *Game::updateAnimatedLvlObjectType0(LvlObject *ptr) {
 	case 0:
 		return ptr->nextPtr;
 	default:
-		soundNum = READ_LE_UINT16(vg->currentSpriteData);
+		soundNum = isPsx ? READ_LE_UINT32(vg->currentSpriteData) : READ_LE_UINT16(vg->currentSpriteData);
 		if (ptr->hitCount == 0) {
 			++vg->currentFrame;
 			if (vg->currentFrame >= vg->framesCount) {
@@ -2490,9 +2497,6 @@ LvlObject *Game::updateAnimatedLvlObjectTypeDefault(LvlObject *ptr) {
 LvlObject *Game::updateAnimatedLvlObject(LvlObject *o) {
 	switch (o->type) {
 	case 0:
-		if (_res->_isPsx) {
-			return o->nextPtr;
-		}
 		o = updateAnimatedLvlObjectType0(o);
 		break;
 	case 1:
@@ -4787,10 +4791,7 @@ void Game::updateWormHoleSprites() {
 
 bool Game::loadSetupCfg(bool resume) {
 	_resumeGame = resume;
-	FILE *fp = _fs.openSaveFile(_setupCfg, false);
-	if (fp) {
-		_res->readSetupCfg(fp, &_setupConfig);
-		_fs.closeFile(fp);
+	if (_res->readSetupCfg(&_setupConfig)) {
 		return true;
 	}
 	memset(&_setupConfig, 0, sizeof(_setupConfig));
@@ -4798,10 +4799,6 @@ bool Game::loadSetupCfg(bool resume) {
 }
 
 void Game::saveSetupCfg() {
-	if (!_resumeGame) {
-		// do not save progress when game is started from a specific level/checkpoint
-		return;
-	}
 	const int num = _setupConfig.currentPlayer;
 	if (_currentLevelCheckpoint > _setupConfig.players[num].progress[_currentLevel]) {
 		_setupConfig.players[num].progress[_currentLevel] = _currentLevelCheckpoint;
@@ -4814,39 +4811,19 @@ void Game::saveSetupCfg() {
 	if (_currentLevel > _setupConfig.players[num].currentLevel) {
 		_setupConfig.players[num].currentLevel = _currentLevel;
 	}
-	FILE *fp = _fs.openSaveFile(_setupCfg, true);
-	if (fp) {
-		_res->writeSetupCfg(fp, &_setupConfig);
-		_fs.closeFile(fp);
-	} else {
-		warning("Failed to save '%s'", _setupCfg);
-	}
+	_res->writeSetupCfg(&_setupConfig);
 }
 
 void Game::captureScreenshot() {
 	static int screenshot = 1;
+
 	char name[64];
-
-	snprintf(name, sizeof(name), "screenshot-%03d-front.bmp", screenshot);
-	saveBMP(name, _video->_frontLayer, _video->_palette, Video::W, Video::H);
-
-	snprintf(name, sizeof(name), "screenshot-%03d-background.bmp", screenshot);
-	saveBMP(name, _video->_backgroundLayer, _video->_palette, Video::W, Video::H);
-
-	snprintf(name, sizeof(name), "screenshot-%03d-shadow.bmp", screenshot);
-	saveBMP(name, _video->_shadowLayer, _video->_palette, Video::W, Video::H);
-
-	static const int kPaletteRectSize = 8;
-	uint8_t paletteBuffer[8 * 256 * 8];
-	for (int x = 0; x < 256; ++x) {
-		const int xOffset = x * kPaletteRectSize;
-		for (int y = 0; y < kPaletteRectSize; ++y) {
-			memset(paletteBuffer + xOffset + y * 256 * kPaletteRectSize, x, kPaletteRectSize);
-		}
+	snprintf(name, sizeof(name), "screenshot-%03d.bmp", screenshot);
+	FILE *fp = _fs.openSaveFile(name, true);
+	if (fp) {
+		saveBMP(fp, _video->_frontLayer, _video->_palette, Video::W, Video::H);
+		fclose(fp);
 	}
-
-	snprintf(name, sizeof(name), "screenshot-%03d-palette.bmp", screenshot);
-	saveBMP(name, paletteBuffer, _video->_palette, 256 * kPaletteRectSize, kPaletteRectSize);
 
 	++screenshot;
 }

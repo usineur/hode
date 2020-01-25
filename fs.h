@@ -16,7 +16,7 @@ struct FileSystem {
 
 	FILE *openAssetFile(const char *filename);
 	FILE *openSaveFile(const char *filename, bool write);
-	void closeFile(FILE *);
+	int closeFile(FILE *);
 
 	void addFilePath(const char *path);
 	void listFiles(const char *dir);
