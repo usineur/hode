@@ -2090,7 +2090,7 @@ void Game::drawScreen() {
 	}
 }
 
-void Game::mainLoop(int level, int checkpoint, bool levelChanged) {
+void Game::mainLoop(int &level, int &checkpoint, bool levelChanged) {
 	if (_loadingScreenEnabled) {
 		displayLoadingScreen();
 	}

@@ -32,7 +32,7 @@ if(SWITCH_LIBNX)
   add_definitions(-D__SWITCH__)
   add_custom_target(${CMAKE_PROJECT_NAME}.nro
     DEPENDS ${CMAKE_PROJECT_NAME}
-    COMMAND nacptool --create "Heart of Darkness" "cyx, usineur" "0.2.7" ${CMAKE_PROJECT_NAME}.nacp
+    COMMAND nacptool --create "Heart of Darkness" "cyx, usineur" "0.2.8" ${CMAKE_PROJECT_NAME}.nacp
     COMMAND elf2nro ${CMAKE_PROJECT_NAME} ${CMAKE_PROJECT_NAME}.nro --icon=${CMAKE_SOURCE_DIR}/3p/res/icon.jpg --nacp=${CMAKE_PROJECT_NAME}.nacp
   )
   add_custom_target(nxlink

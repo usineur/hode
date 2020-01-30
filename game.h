@@ -243,7 +243,7 @@ struct Game {
 	uint32_t benchmarkCpu();
 
 	// game.cpp
-	void mainLoop(int level, int checkpoint, bool levelChanged);
+	void mainLoop(int &level, int &checkpoint, bool levelChanged);
 	void mixAudio(int16_t *buf, int len);
 	void resetShootLvlObjectDataTable();
 	void clearShootLvlObjectData(LvlObject *ptr);
