@@ -198,26 +198,24 @@ int main(int argc, char *argv[]) {
 	setupAudio(g);
 	g->loadSetupCfg(resume);
 	bool runGame = true;
+	g->_video->init(isPsx);
 	if (_runMenu && resume && !isPsx) {
 		Menu *m = new Menu(g, g->_paf, g->_res, g->_video);
 		runGame = m->mainLoop();
 		delete m;
 	}
-	if (runGame) {
-		if (isPsx) {
-			g->_video->initPsx();
-		}
+	if (runGame && !g_system->inp.quit) {
 		bool levelChanged = false;
 		do {
 			g->mainLoop(level, checkpoint, levelChanged);
+			// do not save progress when game is started from a specific level/checkpoint
+			if (resume) {
+				g->saveSetupCfg();
+			}
 			level += 1;
 			checkpoint = 0;
 			levelChanged = true;
 		} while (!g_system->inp.quit && level < kLvl_test);
-		// do not save progress when game is started from a specific level/checkpoint
-		if (resume) {
-			g->saveSetupCfg();
-		}
 	}
 	g_system->stopAudio();
 	g->_mix.fini();

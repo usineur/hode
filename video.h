@@ -40,7 +40,6 @@ struct Video {
 	uint8_t *_transformShadowBuffer;
 	uint8_t _transformShadowLayerDelta;
 	uint8_t _fillColor;
-	uint8_t _blackColor;
 	uint8_t _shadowColorLut[256];
 	const uint8_t *_font;
 
@@ -61,8 +60,11 @@ struct Video {
 	Video();
 	~Video();
 
+	void init(bool mdec);
+
 	void refreshGamePalette(const uint16_t *pal);
 	void updateGameDisplay(uint8_t *buf);
+	void updateYuvDisplay();
 	void updateScreen();
 	void fillBackBuffer();
 	void clearPalette();
@@ -79,9 +81,8 @@ struct Video {
 	void drawString(const char *s, int x, int y, uint8_t color, uint8_t *dst);
 	uint8_t findWhiteColor() const;
 
-	void initPsx();
-	void decodeBackgroundPsx(const uint8_t *src);
-	void decodeTilePsx(const uint8_t *src);
+	void decodeBackgroundPsx(const uint8_t *src, int size, int w, int h, int x = 0, int y = 0);
+	void decodeBackgroundOverlayPsx(const uint8_t *src, int x = 0, int y = 0);
 };
 
 #endif // VIDEO_H__

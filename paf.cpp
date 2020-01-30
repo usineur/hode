@@ -391,8 +391,14 @@ static void decodeAudioFrame2205(const uint8_t *src, int len, int16_t *dst) {
 void PafPlayer::decodeAudioFrame(const uint8_t *src, uint32_t offset, uint32_t size) {
 	assert(size == _pafHdr.readBufferSize);
 
-	// copy must be sequential
-	assert(offset == _audioBufferOffsetWr);
+	// copy should be sequential
+	if (offset != _audioBufferOffsetWr) {
+		warning("Unexpected offset 0x%x wr 0x%x rd 0x%x num %d", offset, _audioBufferOffsetWr, _audioBufferOffsetRd, _videoNum);
+		assert(offset == 0);
+		// this happens in paf #3 of Italian release, there is a flush at 0x16800 instead of 0x1f000
+		_audioBufferOffsetWr = 0;
+		_audioBufferOffsetRd = 0;
+	}
 
 	_audioBufferOffsetWr = offset + size;
 
