@@ -981,6 +981,7 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 	}
 	// preload PCM (_sssHdr.preloadPcmCount or setup.dat)
 	if (fp == _datFile) {
+		fp->seek(_sssPcmTable[0].offset, SEEK_SET);
 		for (int i = 0; i < _sssHdr.pcmCount; ++i) {
 			loadSssPcm(fp, &_sssPcmTable[i]);
 		}
@@ -992,10 +993,11 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 		uint32_t *ptr = _sssDataUnk6[i].unk0;
 		for (int j = 0; j < _sssBanksData[i].count; ++j) {
 			for (int k = 0; k < codeOffset->unk5; ++k) {
-				if (mask != 0) {
-					*ptr |= mask;
-					mask <<= 1;
+				if (mask == 0) {
+					break;
 				}
+				*ptr |= mask;
+				mask <<= 1;
 			}
 			++codeOffset;
 			_sssDataUnk6[i].mask |= *ptr;
@@ -1003,7 +1005,7 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 		}
 	}
 	resetSssFilters();
-	// same as clearSoundObjects()
+	// clearSoundObjects();
 	clearSssGroup3();
 }
 
@@ -1114,7 +1116,7 @@ void Resource::loadSssPcm(File *fp, SssPcm *pcm) {
 			}
 			return;
 		}
-		if (fp != _datFile || pcm == &_sssPcmTable[0]) {
+		if (fp != _datFile) {
 			fp->seek(pcm->offset, SEEK_SET);
 		}
 		for (int i = 0; i < pcm->strideCount; ++i) {

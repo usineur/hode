@@ -14,8 +14,8 @@ struct BitStream { // most significant 16 bits
 		: _src(src), _bits(0), _len(0), _end(src + size) {
 	}
 
-	bool endOfStream() const {
-		return _src >= _end && _len == 0;
+	int bitsAvailable() const {
+		return (_end - _src) * 8 + _len;
 	}
 
 	int getBits(int count) { // 6 to 16 bits
@@ -32,7 +32,7 @@ struct BitStream { // most significant 16 bits
 	}
 	int getSignedBits(int len) {
 		const int shift = 32 - len;
-		int32_t value = getBits(len);
+		const int32_t value = getBits(len);
 		return (value << shift) >> shift;
 	}
 	bool getBit() {
@@ -54,7 +54,7 @@ static int readDC(BitStream *bs, int version) {
 static void readAC(BitStream *bs, int *coefficients) {
 	int count = 0;
 	int node = 0;
-	while (!bs->endOfStream()) {
+	while (bs->bitsAvailable() > 0) {
 		const uint16_t value = _acHuffTree[node].value;
 		switch (value) {
 		case kAcHuff_EscapeCode: {
@@ -176,14 +176,14 @@ static void decodeBlock(BitStream *bs, int x8, int y8, uint8_t *dst, int dstPitc
 	}
 }
 
-int decodeMDEC(const uint8_t *src, int len, const uint8_t *mborder, int w, int h, MdecOutput *out) {
+int decodeMDEC(const uint8_t *src, int len, const uint8_t *mborder, int mblen, int w, int h, MdecOutput *out) {
 	BitStream bs(src, len);
 	bs.getBits(16);
 	const uint16_t vlc = bs.getBits(16);
 	assert(vlc == 0x3800);
 	const uint16_t qscale = bs.getBits(16);
 	const uint16_t version = bs.getBits(16);
-	// fprintf(stdout, "mdec qscale %d version %d\n", qscale, version);
+	// fprintf(stdout, "mdec qscale %d version %d w %d h %d\n", qscale, version, w, h);
 	assert(version == 2);
 
 	const int blockW = (w + 15) / 16;
@@ -196,13 +196,15 @@ int decodeMDEC(const uint8_t *src, int len, const uint8_t *mborder, int w, int h
 	const int crPitch = out->planes[kOutputPlaneCr].pitch;
 	uint8_t *crPtr = out->planes[kOutputPlaneCr].ptr + out->y / 2 * crPitch + out->x / 2;
 
+	int z = 0;
 	for (int x = 0; x < blockW; ++x) {
 		for (int y = 0; y < blockH; ++y) {
-			if (mborder) {
-				const uint8_t xy = *mborder++;
+			if (z < mblen) {
+				const uint8_t xy = mborder[z];
 				if ((xy & 15) != x || (xy >> 4) != y) {
 					continue;
 				}
+				++z;
 			}
 			decodeBlock(&bs, x, y, crPtr, crPitch, qscale, version);
 			decodeBlock(&bs, x, y, cbPtr, cbPitch, qscale, version);
@@ -210,10 +212,13 @@ int decodeMDEC(const uint8_t *src, int len, const uint8_t *mborder, int w, int h
 			decodeBlock(&bs, 2 * x + 1, 2 * y,     yPtr, yPitch, qscale, version);
 			decodeBlock(&bs, 2 * x,     2 * y + 1, yPtr, yPitch, qscale, version);
 			decodeBlock(&bs, 2 * x + 1, 2 * y + 1, yPtr, yPitch, qscale, version);
+			if (mborder && z == mblen) {
+				goto end;
+			}
 		}
 	}
-
-	if (!mborder) {
+end:
+	if (!mborder && bs.bitsAvailable() >= 11) {
 		const int eof = bs.getBits(11);
 		assert(eof == 0x3FE); // v2 frame
 	}

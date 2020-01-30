@@ -1,6 +1,6 @@
 
 hode README
-Release version: 0.2.7
+Release version: 0.2.8
 -------------------------------------------------------------------------------
 
 
@@ -50,8 +50,7 @@ Status:
 
 Settings submenu is not implemented.
 
-PSX version datafiles can be used but background overlays (MDEC) are not
-decoded and menu is unavailable.
+PSX datafiles can be used, but menu and videos are missing.
 
 
 Credits:

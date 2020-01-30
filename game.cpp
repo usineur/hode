@@ -316,7 +316,8 @@ void Game::setupBackgroundBitmap() {
 		playSound(lvl->backgroundBitmapId, 0, 0, 3);
 	}
 	if (_res->_isPsx) {
-		_video->decodeBackgroundPsx(pic + 2);
+		const int size = Video::W * Video::H * sizeof(uint16_t);
+		_video->decodeBackgroundPsx(pic + 2, size, Video::W, Video::H);
 	} else {
 		decodeLZW(pic, _video->_backgroundLayer);
 	}
@@ -2257,7 +2258,7 @@ LvlObject *Game::updateAnimatedLvlObjectType0(LvlObject *ptr) {
 			ptr->currentSound = 0xFFFF;
 		}
 		if (isPsx) {
-			_video->decodeTilePsx(data);
+			_video->decodeBackgroundOverlayPsx(data);
 		} else {
 			Sprite *spr = _spritesNextPtr;
 			if (spr && READ_LE_UINT16(data + 2) > 8) {
@@ -2324,7 +2325,7 @@ LvlObject *Game::updateAnimatedLvlObjectType0(LvlObject *ptr) {
 		data = vg->currentSpriteData + soundDataLen;
 		if (_res->_currentScreenResourceNum == ptr->screenNum) {
 			if (isPsx) {
-				_video->decodeTilePsx(data);
+				_video->decodeBackgroundOverlayPsx(data);
 			} else {
 				Sprite *spr = _spritesNextPtr;
 				if (spr && READ_LE_UINT16(data + 2) > 8) {
