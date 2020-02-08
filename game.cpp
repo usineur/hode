@@ -2770,7 +2770,7 @@ void Game::levelMainLoop() {
 	}
 	_rnd.update();
 	g_system->processEvents();
-	if (g_system->inp.keyPressed(SYS_INP_ESC) || g_system->inp.escape) { // display exit confirmation screen
+	if (g_system->inp.keyPressed(SYS_INP_ESC) || g_system->inp.exit) { // display exit confirmation screen
 		if (displayHintScreen(-1, 0)) {
 			g_system->inp.quit = true;
 			return;

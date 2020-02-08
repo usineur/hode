@@ -503,7 +503,7 @@ void PafPlayer::mainLoop() {
 		g_system->copyRect(0, 0, kVideoWidth, kVideoHeight, _pageBuffers[_currentPageBuffer], kVideoWidth);
 		g_system->updateScreen(false);
 		g_system->processEvents();
-		if (g_system->inp.quit || g_system->inp.keyPressed(SYS_INP_ESC) || g_system->inp.escape) {
+		if (g_system->inp.keyPressed(SYS_INP_ESC) || g_system->inp.skip) {
 			break;
 		}
 

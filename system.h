@@ -19,7 +19,8 @@
 
 struct PlayerInput {
 	uint8_t prevMask, mask;
-	bool escape;
+	bool skip;
+	bool exit;
 	bool quit;
 	bool screenshot;
 
