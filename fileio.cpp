@@ -3,7 +3,9 @@
  * Copyright (C) 2009-2011 Gregory Montoir (cyx@users.sourceforge.net)
  */
 
+#ifndef __WINRT__
 #include <sys/param.h>
+#endif
 #include "fileio.h"
 #include "util.h"
 

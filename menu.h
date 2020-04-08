@@ -9,28 +9,28 @@ struct PafPlayer;
 struct Resource;
 struct Video;
 
-struct DatSpritesGroup {
+PACKSTRUCT(struct DatSpritesGroup {
 	uint32_t currentFrameOffset; // 0
 	uint32_t firstFrameOffset; // 4
 	uint32_t size; // 8 following this header
 	uint16_t count; // 12
 	uint16_t num; // 14
-} PACKED; // sizeof == 16
+}); // sizeof == 16
 
-struct DatBitmap {
+PACKSTRUCT(struct DatBitmap {
 	uint32_t size; // 0
 	uint32_t unk4; // 4
 	// 8 lzw + 768 palette
-} PACKED; // sizeof == 8
+}); // sizeof == 8
 
-struct DatBitmapsGroup {
+PACKSTRUCT(struct DatBitmapsGroup {
 	uint8_t w;
 	uint8_t h;
 	uint8_t colors;
 	uint8_t data;
 	uint32_t offset; // 4
 	uint32_t palette; // 8
-} PACKED; // sizeof == 12
+}); // sizeof == 12
 
 struct Menu {
 	enum {

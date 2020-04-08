@@ -1,0 +1,328 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Assets">
+      <UniqueIdentifier>488f229f-436e-4857-b63f-5dab99b8ca2c</UniqueIdentifier>
+      <Extensions>bmp;fbx;gif;jpg;jpeg;tga;tiff;tif;png</Extensions>
+    </Filter>
+    <Image Include="Assets\LockScreenLogo.scale-200.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\SplashScreen.scale-200.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\Square150x150Logo.scale-200.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\Square44x44Logo.scale-200.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\Wide310x150Logo.scale-200.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Filter Include="sources">
+      <UniqueIdentifier>{91b24a58-fe37-456c-934f-8b77f40c7e5b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hode">
+      <UniqueIdentifier>{7ee381ce-0165-4bf7-acfc-6e9d4cf3b2ec}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hode\3p">
+      <UniqueIdentifier>{15feea2f-e7d8-4d80-839a-31eb63796ada}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hode\3p\inih">
+      <UniqueIdentifier>{25d8286e-7923-4ded-be8b-a5b44bc465bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hode\3p\libxbr">
+      <UniqueIdentifier>{5675cfbb-3c79-4f99-aa7a-e1f8a8daf29c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="data">
+      <UniqueIdentifier>{ed2761dd-9801-4c6a-a290-769642c42235}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\StoreLogo.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\SplashScreen.png">
+      <Filter>Assets</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <AppxManifest Include="Package.appxmanifest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="sources\SDL_winrt_main_NonXAML.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\andy.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\benchmark.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fileio.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\game.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\level1_rock.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\level2_fort.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\level3_pwr1.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\level4_isld.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\level5_lava.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\level6_pwr2.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\level7_lar1.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\level8_lar2.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\level9_dark.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lzw.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\main.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\mdec.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\menu.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\mixer.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\monsters.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\paf.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\random.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\resource.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scaler_nearest.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scaler_xbr.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\screenshot.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\sound.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\staticres.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\system_sdl2.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\util.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\video.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fs_win32.cpp">
+      <Filter>hode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3p\libxbr-standalone\hq2x.c">
+      <Filter>hode\3p\libxbr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3p\libxbr-standalone\hq3x.c">
+      <Filter>hode\3p\libxbr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3p\libxbr-standalone\hq4x.c">
+      <Filter>hode\3p\libxbr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3p\libxbr-standalone\xbr.c">
+      <Filter>hode\3p\libxbr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3p\inih\ini.c">
+      <Filter>hode\3p\inih</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\defs.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\fileio.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\fs.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\game.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\intern.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\level.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\lzw.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\mdec.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\mdec_coeffs.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\menu.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\mixer.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\paf.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\random.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\resource.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\scaler.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\screenshot.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\system.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\video.h">
+      <Filter>hode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3p\libxbr-standalone\filters.h">
+      <Filter>hode\3p\libxbr</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3p\libxbr-standalone\internal_hqx_common.h">
+      <Filter>hode\3p\libxbr</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3p\inih\ini.h">
+      <Filter>hode\3p\inih</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Media Include="data\Dark_hod.lvl">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Dark_hod.mst">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Dark_hod.sss">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Fort_hod.lvl">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Fort_hod.mst">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Fort_hod.sss">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Isld_hod.lvl">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Isld_hod.mst">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Isld_hod.sss">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Lar1_hod.lvl">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Lar1_hod.mst">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Lar1_hod.sss">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Lar2_hod.lvl">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Lava_hod.lvl">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Lar2_hod.sss">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Lar2_hod.mst">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Lava_hod.mst">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Lava_hod.sss">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Pwr1_hod.lvl">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Pwr1_hod.mst">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Pwr1_hod.sss">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Pwr2_hod.lvl">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Pwr2_hod.mst">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Pwr2_hod.sss">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Rock_hod.lvl">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Rock_hod.mst">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Rock_hod.sss">
+      <Filter>data</Filter>
+    </Media>
+    <Media Include="data\Setup.dat">
+      <Filter>data</Filter>
+    </Media>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="data\hod.paf">
+      <Filter>data</Filter>
+    </None>
+  </ItemGroup>
+</Project>

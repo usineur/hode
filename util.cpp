@@ -6,6 +6,8 @@
 #ifdef __ANDROID__
 #define LOG_TAG "HodJni"
 #include <android/log.h>
+#elif defined(__WIN32__) || defined(__WINRT__)
+#include <windows.h>
 #endif
 #include <stdarg.h>
 #include "util.h"
@@ -23,6 +25,8 @@ void debug(int mask, const char *msg, ...) {
 		fflush(stdout);
 #ifdef __ANDROID__
 		__android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s", buf);
+#elif defined(__WINRT__)
+		OutputDebugStringA(buf);
 #endif
 	}
 }
@@ -36,6 +40,10 @@ void error(const char *msg, ...) {
 	fprintf(stderr, "ERROR: %s!\n", buf);
 #ifdef __ANDROID__
 	__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", buf);
+#elif defined(__WINRT__)
+	char errorBuf[1024];
+	sprintf(errorBuf, "ERROR: %s!\n", buf);
+	OutputDebugStringA(errorBuf);
 #endif
 	exit(-1);
 }
@@ -49,6 +57,10 @@ void warning(const char *msg, ...) {
 	fprintf(stderr, "WARNING: %s!\n", buf);
 #ifdef __ANDROID__
 	__android_log_print(ANDROID_LOG_WARN, LOG_TAG, "%s", buf);
+#elif defined(__WINRT__)
+	char warnBuf[1024];
+	sprintf(warnBuf, "WARNING: %s!\n", buf);
+	OutputDebugStringA(warnBuf);
 #endif
 }
 

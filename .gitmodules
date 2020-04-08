@@ -6,3 +6,7 @@
 	path = 3p/libxbr-standalone
 	url = https://github.com/Treeki/libxbr-standalone.git
 	ignore = dirty
+[submodule "WinRT/externals/SDL2"]
+	path = WinRT/externals/SDL2
+	url = https://github.com/SDL-mirror/SDL.git
+	branch = master

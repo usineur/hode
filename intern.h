@@ -24,7 +24,30 @@ static const bool kByteSwapData = (__BYTE_ORDER == __BIG_ENDIAN);
 #endif
 
 #define ARRAYSIZE(a) (sizeof(a)/sizeof(a[0]))
-#define PACKED __attribute__((packed))
+
+#ifdef __WINRT__
+#define strcasecmp _stricmp
+#endif
+
+/* Compability */
+#ifndef PACKSTRUCT
+	#ifdef PACKED
+		#define PACKSTRUCT(a) a PACKED 
+	#else
+		/*Default packed configuration*/
+		#ifdef __GNUC__
+			#ifdef _WIN32
+				#define PACKSTRUCT( decl ) decl __attribute__((__packed__,gcc_struct))
+			#else
+				#define PACKSTRUCT( decl ) decl __attribute__((__packed__))
+			#endif
+			#define ALIGNED __attribute__((aligned(0x4)))
+		#else //msvc
+			#define PACKSTRUCT( decl ) __pragma( pack(push, 1) ) decl __pragma( pack(pop) )
+			#define ALIGNED
+		#endif
+	#endif
+#endif
 
 inline uint16_t READ_LE_UINT16(const void *ptr) {
 	if (1 && (((uintptr_t)ptr) & 1) != 0) {

@@ -4,7 +4,9 @@
  */
 
 #include <SDL.h>
+#ifndef __WINRT__
 #include <getopt.h>
+#endif
 #include <sys/stat.h>
 
 #include "3p/inih/ini.h"
@@ -132,9 +134,24 @@ int main(int argc, char *argv[]) {
 	socketInitializeDefault();
 	nxlinkStdio();
 #endif
-#ifdef __vita__
+#ifdef defined(__vita__)
 	const char *dataPath = "ux0:data/hode";
 	const char *savePath = "ux0:data/hode";
+#elif defined(__WINRT__)
+	char* dataPath = (char*)malloc(_MAX_PATH);
+	char* savePath = (char*)malloc(_MAX_PATH);
+
+	/*
+	For durango:
+	savePath: U:\\Users\\UserMgr0\\AppData\\Local\\Packages\\2bfa4c65-5b83-4a27-be98-3d3279288eb4_nh20k94c8ngfj\\LocalState
+	dataPath: D:\\DevelopmentFiles\\2bfa4c65-5b83-4a27-be98-3d3279288eb4VS.Debug_x64.dev\\data
+
+	COPY the gamedata to dataPath, no subfolders
+	*/
+	Platform::String^ data_dir = Windows::ApplicationModel::Package::Current->InstalledLocation->Path + L"\\data";
+	Platform::String^ save_dir = Windows::Storage::ApplicationData::Current->LocalFolder->Path;
+	wcstombs(dataPath, data_dir->Data(), _MAX_PATH);
+	wcstombs(savePath, save_dir->Data(), _MAX_PATH);
 #else
 	char *dataPath = 0;
 	char *savePath = 0;
@@ -146,6 +163,7 @@ int main(int argc, char *argv[]) {
 	g_debugMask = 0; //kDebug_GAME | kDebug_RESOURCE | kDebug_SOUND | kDebug_MONSTER;
 	int cheats = 0;
 
+#ifndef __WINRT__
 	if (argc == 2) {
 		// data path as the only command line argument
 		struct stat st;
@@ -203,6 +221,8 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 	}
+#endif
+
 	Game *g = new Game(dataPath ? dataPath : _defaultDataPath, savePath ? savePath : _defaultSavePath, cheats);
 	ini_parse(_configIni, handleConfigIni, g);
 	if (_runBenchmark) {
@@ -238,7 +258,7 @@ int main(int argc, char *argv[]) {
 	g->_mix.fini();
 	g_system->destroy();
 	delete g;
-#ifndef __vita__
+#if !defined(__vita__)
 	free(dataPath);
 	free(savePath);
 #endif
