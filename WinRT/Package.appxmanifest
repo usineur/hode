@@ -8,14 +8,14 @@
 
   <Identity
     Name="HeartOfDarkness"
-    Publisher="CN=dev"
+    Publisher="CN=XOSFT"
     Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="2bfa4c65-5b83-4a27-be98-3d3279288eb4" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>Heart Of Darkness</DisplayName>
-    <PublisherDisplayName>tuxuser</PublisherDisplayName>
+    <PublisherDisplayName>XOSFT</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
@@ -34,22 +34,11 @@
       <uap:VisualElements
         DisplayName="Heart Of Darkness"
         Square150x150Logo="Assets\Square150x150Logo.png"
-        Square44x44Logo="Assets\Square44x44Logo.png"
         Description="Open-Source implementation of the Game Heart of Darkness"
-        BackgroundColor="black">
-        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" Square71x71Logo="Assets\SmallTile.png" Square310x310Logo="Assets\LargeTile.png" ShortName="HoD">
-          <uap:ShowNameOnTiles>
-            <uap:ShowOn Tile="square150x150Logo"/>
-            <uap:ShowOn Tile="wide310x150Logo"/>
-            <uap:ShowOn Tile="square310x310Logo"/>
-          </uap:ShowNameOnTiles>
-        </uap:DefaultTile >
+        BackgroundColor="black" Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png"/>
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
     </Application>
   </Applications>
-
-  <Capabilities>
-    <Capability Name="internetClient" />
-  </Capabilities>
 </Package>
