@@ -221,6 +221,8 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 	}
+#else
+	SDL_SetHint(SDL_HINT_WINRT_HANDLE_BACK_BUTTON, "1");
 #endif
 
 	Game *g = new Game(dataPath ? dataPath : _defaultDataPath, savePath ? savePath : _defaultSavePath, cheats);
