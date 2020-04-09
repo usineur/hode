@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
 	socketInitializeDefault();
 	nxlinkStdio();
 #endif
-#ifdef defined(__vita__)
+#if defined(__vita__)
 	const char *dataPath = "ux0:data/hode";
 	const char *savePath = "ux0:data/hode";
 #elif defined(__WINRT__)
