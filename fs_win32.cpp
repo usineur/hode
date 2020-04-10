@@ -79,7 +79,8 @@ void FileSystem::listFiles(const char* dir) {
 	HANDLE d = FindFirstFileA(filePath, &de);
 	if (d != INVALID_HANDLE_VALUE) {
 		BOOL found = TRUE;
-		while(FindNextFileA(d, &de) != 0) {
+		do
+		{
 			if (de.cFileName[0] == '.')
 			{
 				continue;
@@ -91,7 +92,7 @@ void FileSystem::listFiles(const char* dir) {
 			else if (matchGameData(filePath)) {
 				addFilePath(filePath);
 			}
-		}
+		} while (FindNextFileA(d, &de) != 0);
 		FindClose(d);
 	}
 }
