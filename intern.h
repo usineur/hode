@@ -18,6 +18,14 @@
 #define htole16(x) x
 #define htole32(x) x
 static const bool kByteSwapData = false; // no byteswap needed on little endian
+#elif defined(__APPLE__)
+#include <libkern/OSByteOrder.h>
+#define le16toh(x) OSSwapLittleToHostInt16(x)
+#define le32toh(x) OSSwapLittleToHostInt32(x)
+#define htole16(x) OSSwapHostToLittleInt16(x)
+#define htole32(x) OSSwapHostToLittleInt32(x)
+#include <machine/endian.h>
+static const bool kByteSwapData = false;
 #else
 #include <endian.h>
 static const bool kByteSwapData = (__BYTE_ORDER == __BIG_ENDIAN);
