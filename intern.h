@@ -25,7 +25,7 @@ static const bool kByteSwapData = false; // no byteswap needed on little endian
 #define htole16(x) OSSwapHostToLittleInt16(x)
 #define htole32(x) OSSwapHostToLittleInt32(x)
 #include <machine/endian.h>
-static const bool kByteSwapData = false;
+static const bool kByteSwapData = (BYTE_ORDER == BIG_ENDIAN);
 #else
 #include <endian.h>
 static const bool kByteSwapData = (__BYTE_ORDER == __BIG_ENDIAN);
