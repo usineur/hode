@@ -396,7 +396,7 @@ void Level_lava::postScreenUpdate_lava_screen10() {
 							_paf->play(7);
 							_paf->unload(7);
 							_video->clearPalette();
-							_g->updateScreen(_andyObject->screenNum);
+							_g->setupScreen(_andyObject->screenNum);
 						}
 					}
 				}

@@ -46,7 +46,7 @@ void Level_dark::postScreenUpdate_dark_screen0() {
 				_paf->unload(21);
 			}
 			_video->clearPalette();
-			_video->fillBackBuffer();
+			_video->clearBackBuffer();
 			_g->_endLevel = true;
 		}
 	}

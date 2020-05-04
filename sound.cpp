@@ -62,7 +62,7 @@ static bool compareSssGroup(uint32_t flags_a, uint32_t flags_b) {
 		return false;
 	}
 	// we can instead simply compare masked integers
-	return (flags_a & 0xFFF00FFF) == (flags_b & 0xFFF00FFF);
+	return compare_bits(flags_a, flags_b, 0xFFF00FFF);
 }
 
 // returns the active samples for the table/source/bank
@@ -337,7 +337,7 @@ void Game::sssOp4_removeSounds(uint32_t flags) {
 	const uint32_t mask = 1 << (flags >> 24);
 	*getSssGroupPtr(_res, 1, flags) &= ~mask;
 	for (SssObject *so = _sssObjectsList1; so; so = so->nextPtr) {
-		if (((so->flags1 ^ flags) & 0xFFFF0FFF) == 0) { // (a & m) == (b & m)
+		if (compare_bits(so->flags1, flags, 0xFFFF0FFF)) {
 			so->codeDataStage3 = 0;
 			if (so->codeDataStage4 == 0) {
 				removeSoundObjectFromList(so);
@@ -347,7 +347,7 @@ void Game::sssOp4_removeSounds(uint32_t flags) {
 		}
 	}
 	for (SssObject *so = _sssObjectsList2; so; so = so->nextPtr) {
-		if (((so->flags1 ^ flags) & 0xFFFF0FFF) == 0) {
+		if (compare_bits(so->flags1, flags, 0xFFFF0FFF)) {
 			so->codeDataStage3 = 0;
 			if (so->codeDataStage4 == 0) {
 				removeSoundObjectFromList(so);
@@ -770,8 +770,7 @@ SssObject *Game::createSoundObject(int bankIndex, int sampleIndex, uint32_t flag
 				return 0;
 			}
 			const int firstSampleIndex = bank->firstSampleIndex;
-			assert(firstSampleIndex >= 0 && firstSampleIndex < _res->_sssHdr.samplesDataCount);
-			SssSample *sample = &_res->_sssSamplesData[firstSampleIndex];
+			const SssSample *sample = &_res->_sssSamplesData[firstSampleIndex];
 			int framesCount = 0;
 			for (int i = 0; i < bank->count; ++i) {
 				if (sample->pcm != 0xFFFF) {
@@ -833,14 +832,8 @@ SssObject *Game::startSoundObject(int bankIndex, int sampleIndex, uint32_t flags
 	SssBank *bank = &_res->_sssBanksData[bankIndex];
 	const int sampleNum = bank->firstSampleIndex + sampleIndex;
 	debug(kDebug_SOUND, "startSoundObject sample %d", sampleNum);
-	assert(sampleNum >= 0 && sampleNum < _res->_sssHdr.samplesDataCount);
-	SssSample *sample = &_res->_sssSamplesData[sampleNum];
-
-	// original preloads PCM when changing screens
+	const SssSample *sample = &_res->_sssSamplesData[sampleNum];
 	SssPcm *pcm = &_res->_sssPcmTable[sample->pcm];
-	if (!pcm->ptr && !_res->_isPsx) {
-		_res->loadSssPcm(_res->_sssFile, pcm);
-	}
 
 	if (sample->framesCount != 0) {
 		SssFilter *filter = &_res->_sssFilters[bank->sssFilter];
@@ -1122,7 +1115,7 @@ void Game::expireSoundObjects(uint32_t flags) {
 	*getSssGroupPtr(_res, 1, flags) &= ~mask;
 	*getSssGroupPtr(_res, 2, flags) &= ~mask;
 	for (SssObject *so = _sssObjectsList1; so; so = so->nextPtr) {
-		if (((so->flags0 ^ flags) & 0xFFFF0FFF) == 0) {
+		if (compare_bits(so->flags0, flags, 0xFFFF0FFF)) {
 			so->codeDataStage3 = 0;
 			if (so->codeDataStage4 == 0) {
 				removeSoundObjectFromList(so);
@@ -1132,7 +1125,7 @@ void Game::expireSoundObjects(uint32_t flags) {
 		}
 	}
 	for (SssObject *so = _sssObjectsList2; so; so = so->nextPtr) {
-		if (((so->flags0 ^ flags) & 0xFFFF0FFF) == 0) {
+		if (compare_bits(so->flags0, flags, 0xFFFF0FFF)) {
 			so->codeDataStage3 = 0;
 			if (so->codeDataStage4 == 0) {
 				removeSoundObjectFromList(so);
@@ -1196,7 +1189,7 @@ void Game::queueSoundObjectsPcmStride() {
 			if (so->currentPcmPtr < ptr) {
 				continue;
 			}
-			const uint32_t pcmSize = _res->getSssPcmSize(pcm) / sizeof(int16_t);
+			const uint32_t pcmSize = pcm->pcmSize / sizeof(int16_t);
 			const int16_t *end = ptr + pcmSize;
 			if (so->currentPcmPtr >= end) {
 				continue;

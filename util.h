@@ -25,4 +25,8 @@ void debug(int mask, const char *msg, ...);
 void error(const char *msg, ...);
 void warning(const char *msg, ...);
 
+#ifdef NDEBUG
+#define debug(x, ...)
+#endif
+
 #endif // UTIL_H__

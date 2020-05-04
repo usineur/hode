@@ -149,7 +149,7 @@ static void idct(float *dequantData, float *result) {
 			for (int i = 0; i < 8; ++i) {
 				p += u[i] * _idct8x8[y][i];
 			}
-                        result[y * 8 + x] = p;
+			result[y * 8 + x] = p;
 		}
 	}
 }

@@ -66,7 +66,8 @@ struct Menu {
 	const uint8_t *_iconsSpritesData;
 	int _optionsButtonSpritesCount;
 	const uint8_t *_optionsButtonSpritesData;
-	const uint8_t *_currentOptionButton;
+	DatSpritesGroup *_currentOptionButtonSprite;
+	int _currentOptionButtonSound;
 
 	const uint8_t *_digitsData;
 	const uint8_t *_optionData;
@@ -84,6 +85,10 @@ struct Menu {
 	int _cutsceneNum;
 	uint8_t _loadCutsceneButtonState;
 	int _cutsceneIndexes[kCutsceneIndexesCount];
+	int _settingNum;
+	int _difficultyNum;
+	int _soundNum;
+	uint8_t _soundVolume;
 
 	Menu(Game *g, PafPlayer *paf, Resource *res, Video *video);
 
@@ -91,12 +96,13 @@ struct Menu {
 
 	void loadData();
 
-	int getSoundNum(int num) const;
+	int getSoundNum(int num, int index = 0) const;
 	void playSound(int num);
 
-	void drawSprite(const DatSpritesGroup *spriteGroup, const uint8_t *ptr, uint32_t num);
-	void drawSpritePos(const DatSpritesGroup *spriteGroup, const uint8_t *ptr, int x, int y, uint32_t num);
-	void drawSpriteNextFrame(DatSpritesGroup *spriteGroup, int num, int x, int y);
+	void drawSprite(const DatSpritesGroup *spriteGroup, const uint8_t *ptr, uint32_t num, int x = -1, int y = -1);
+	void drawSpriteAnim(DatSpritesGroup *spriteGroup, const uint8_t *ptr, uint32_t num);
+
+	void pafCallback(int frameNum, const uint8_t *frameData);
 	void refreshScreen(bool updatePalette);
 
 	bool mainLoop();
@@ -114,7 +120,12 @@ struct Menu {
 	void drawCheckpointScreen();
 	void drawLevelScreen();
 	void drawCutsceneScreen();
+	void drawSettingsScreen();
 	void handleSettingsScreen(int num);
+	void drawDifficultyScreen();
+	void handleDifficultyScreen(int num);
+	void drawSoundScreen();
+	void handleSoundScreen(int num);
 	void changeToOption(int num);
 	void handleLoadLevel(int num);
 	void handleLoadCheckpoint(int num);

@@ -7,6 +7,7 @@
   - fort_hod.lvl: 82456ed6e29780b5b8031a67ba3dddb8da813c19
   - fort_hod.mst: ce55095902ade9f1d8a198f271d0946d6228b90d
   - fort_hod.sss: 6ff572b553d93040c9cad74891db05b2cc8267c6
+  - hod.dem: 5d40f812b6ed1385b7e502527911023f28136341
   - hod.paf: 6df823a778ed0df275217692fd814a7408b725cb
   - hodwin32.exe: 02ae85c179f175c5a42fadb22ba9edaf4f62be14
     securom: true
@@ -99,6 +100,7 @@
   - fort_hod.lvl: 82456ed6e29780b5b8031a67ba3dddb8da813c19
   - fort_hod.mst: ce55095902ade9f1d8a198f271d0946d6228b90d
   - fort_hod.sss: 6ff572b553d93040c9cad74891db05b2cc8267c6
+  - hod.dem: 5d40f812b6ed1385b7e502527911023f28136341
   - hod.paf: fe75aff52c879aa5cc84a87babbca2ce0affec23
   - hodwin32.exe: eb0f032f343e2c27d60291c79ae667034a0c7389
     securom: false
@@ -137,6 +139,28 @@
   - rock_hod.mst: 5b49637348f6c6a2737a64cacf01f9bcef8e83f6
   - rock_hod.sss: 55c841f6c091c2ae68f0636c075c66405d00cc6a
   - setup.dat: 5cb36223a3fc5561d9c9d945fe3261cd188b5665
+- name: Heart of Darkness Demo V1.0 (Win32)
+  files:
+  - hod_demo.paf: c1b46680b9e8596d72f998fb2b56d723a28a06af
+  - hodwin32.exe: c649d4365a2c9f6280bc4deb50a7c3ffb73baaad
+    securom: false
+    version_info:
+    - Comments: Demo 1 level
+    - CompanyName: Amazing Studio - 9 rue d' Enhgien - 75010 Paris FRANCE - Email: hod@amazingstudio.com
+    - FileDescription: Heart Of Darkness
+    - FileVersion: 0, 9, 8, 2
+    - InternalName: Heart Of Darkness
+    - LegalCopyright: (c) 1998 by Amazing Studio & Infogrames
+    - LegalTrademarks: by Amazing Studio - All rights reserved
+    - OriginalFilename: Heart Of Darkness
+    - PrivateBuild: 0
+    - ProductName: Heart Of Darkness  - Windows 95 / 98 & NT - DirectX 3.x or greater
+    - ProductVersion: 0, 9, 8, 2
+    - SpecialBuild: VC5.0 Sp3
+  - rock_hod.lvl: c514afa2137b434cdd8da0024c1e4f20bff1cdb7
+  - rock_hod.mst: fa3fd22005a859abdae3b6d8b4f5ecb061a16e37
+  - rock_hod.sss: 855d5b4b4fec7c8d8d64575d8a1ce5ee27d8e2d5
+  - setup.dat: 56fd54d28074657b947e165134f044d9a91cef47
 - name: Heart of Darkness Demo V1.2 (Win32)
   files:
   - hod_demo.paf: 50a0942256b17ed26f3b0f59f4cf7570a6eb8688
@@ -223,6 +247,7 @@
   - dark_hod.mst: a97ac13edde17fd33cb06e9907139949c8b79cdb
   - fort_hod.lvl: e94a21bc4f779dba658ef5ab45f1ad15880913d8
   - fort_hod.mst: f7423c3d277650ac36378f09f59034cec28b6b34
+  - hod.dem: ba5060778a9f5391a8fa9a4928473cf7797df15a
   - isld_hod.lvl: c0fbd02deea136d57b60bc8a7c3df69741491335
   - isld_hod.mst: 9ff92346444a66833eb2f8a1b3853ad788d1777b
   - lar1_hod.lvl: 575dde976affeedfa5f1637a34d5efdda3218778

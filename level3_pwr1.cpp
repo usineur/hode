@@ -394,7 +394,7 @@ void Level_pwr1::preScreenUpdate_pwr1_screen15() {
 }
 
 void Level_pwr1::preScreenUpdate_pwr1_screen21() {
-	if (_res->_currentScreenResourceNum == 15) {
+	if (_res->_currentScreenResourceNum == 21) {
 		if (_checkpoint == 4) {
 			_checkpoint = 5;
 		}

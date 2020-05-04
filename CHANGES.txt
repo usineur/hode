@@ -1,6 +1,13 @@
+* release 0.2.9
+	- added PSP and Wii platforms specific code
+	- added support for PC demo v1.0 data files
+	- fixed screen state for 'fort' screens 16 and 17
+	- fixed checkpoint for 'pwr1' screen 21
+	- fixed PAF animation glitches with last frame
+
 * release 0.2.8
 	- added PSX background overlays (MDEC)
-	- fixed crash playing paf animation #3 with Italian PC data files
+	- fixed crash playing PAF animation #3 with Italian PC data files
 
 * release 0.2.7
 	- added 'projection' submenu
