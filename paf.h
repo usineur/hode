@@ -20,6 +20,7 @@ struct PafHeader {
 	uint32_t readBufferSize;
 	int32_t maxVideoFrameBlocksCount;
 	int32_t maxAudioFrameBlocksCount;
+	int32_t frameRate;
 };
 
 // names taken from the PSX filenames
@@ -34,7 +35,7 @@ enum {
 	kPafAnimation_vicious = 7,
 	kPafAnimation_together = 8,
 	kPafAnimation_power = 9,
-	kPafAniamtion_back = 10,
+	kPafAnimation_back = 10,
 	kPafAnimation_dogfree1 = 11,
 	kPafAnimation_dogfree2 = 12,
 	kPafAnimation_meteor = 13,
@@ -59,6 +60,11 @@ struct PafAudioQueue {
 	PafAudioQueue *next;
 };
 
+struct PafCallback {
+	void (*proc)(void *userdata, int num, const uint8_t *frame);
+	void *userdata;
+};
+
 struct PafPlayer {
 
 	enum {
@@ -81,6 +87,7 @@ struct PafPlayer {
 	int _currentPageBuffer;
 	uint8_t *_pageBuffers[4];
 	uint8_t _paletteBuffer[256 * 3];
+	bool _paletteChanged;
 	uint8_t _bufferBlock[kBufferBlockSize];
 	uint8_t *_demuxVideoFrameBlocks;
 	uint8_t *_demuxAudioFrameBlocks;
@@ -89,6 +96,7 @@ struct PafPlayer {
 	PafAudioQueue *_audioQueue, *_audioQueueTail;
 	uint32_t _flushAudioSize;
 	uint32_t _playedMask;
+	PafCallback _pafCb;
 
 	PafPlayer(FileSystem *fs);
 	~PafPlayer();
@@ -101,7 +109,7 @@ struct PafPlayer {
 	uint32_t *readPafHeaderTable(int count);
 
 	void decodeVideoFrame(const uint8_t *src);
-	uint8_t *getVideoPageOffset(uint8_t a, uint8_t b);
+	uint8_t *getVideoPageOffset(uint16_t val);
 	void decodeVideoFrameOp0(const uint8_t *base, const uint8_t *src, uint8_t code);
 	void decodeVideoFrameOp1(const uint8_t *src);
 	void decodeVideoFrameOp2(const uint8_t *src);
@@ -111,6 +119,8 @@ struct PafPlayer {
 
 	void mix(int16_t *buf, int samples);
 	void mainLoop();
+
+	void setCallback(const PafCallback *pafCb);
 };
 
 #endif // PAF_PLAYER_H__

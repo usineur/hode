@@ -7,18 +7,11 @@ static void nullMixerLock(int lock) {
 
 Mixer::Mixer()
 	: _lock(nullMixerLock) {
-}
-
-Mixer::~Mixer() {
-}
-
-void Mixer::init(int rate) {
-	_rate = rate;
 	memset(_mixingQueue, 0, sizeof(_mixingQueue));
 	_mixingQueueSize = 0;
 }
 
-void Mixer::fini() {
+Mixer::~Mixer() {
 }
 
 void Mixer::queue(const int16_t *ptr, const int16_t *end, int panType, int panL, int panR, bool stereo) {

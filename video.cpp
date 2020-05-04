@@ -15,24 +15,20 @@ Video::Video() {
 	_drawLine.y1 = 0;
 	_drawLine.x2 = W - 1;
 	_drawLine.y2 = H - 1;
-	_drawLine.pitch = W;
 	_shadowLayer = (uint8_t *)malloc(W * H + 1); // projectionData offset can be equal to W * H
 	_frontLayer = (uint8_t *)malloc(W * H);
 	_backgroundLayer = (uint8_t *)malloc(W * H);
-	_spr.pitch = W;
-	_spr.x = 0;
-	_spr.y = 0;
-	_spr.w = W;
-	_spr.h = H;
 	if (kUseShadowColorLut) {
 		_shadowColorLookupTable = (uint8_t *)malloc(256 * 256); // shadowLayer, frontLayer
 	} else {
 		_shadowColorLookupTable = 0;
 	}
 	_shadowScreenMaskBuffer = (uint8_t *)malloc(256 * 192 * 2 + 256 * 4);
+	for (int i = 144; i < 256; ++i) {
+		_shadowColorLut[i] = i;
+	}
 	_transformShadowBuffer = 0;
 	_transformShadowLayerDelta = 0;
-	_fillColor = 0xC4;
 	memset(&_mdec, 0, sizeof(_mdec));
 }
 
@@ -49,12 +45,12 @@ Video::~Video() {
 
 void Video::init(bool mdec) {
 	if (mdec) {
-		const int w = (W + 15) & ~15;
-		const int h = (H + 15) & ~15;
+		static const int w = (W + 15) & ~15;
+		static const int h = (H + 15) & ~15;
+		static const int w2 = w / 2;
+		static const int h2 = h / 2;
 		_mdec.planes[kOutputPlaneY].ptr = (uint8_t *)malloc(w * h);
 		_mdec.planes[kOutputPlaneY].pitch = w;
-		const int w2 = w / 2;
-		const int h2 = h / 2;
 		_mdec.planes[kOutputPlaneCb].ptr = (uint8_t *)malloc(w2 * h2);
 		_mdec.planes[kOutputPlaneCb].pitch = w2;
 		_mdec.planes[kOutputPlaneCr].ptr = (uint8_t *)malloc(w2 * h2);
@@ -66,8 +62,7 @@ static int colorBrightness(int r, int g, int b) {
 	return (r + g * 2) * 19 + b * 7;
 }
 
-void Video::refreshGamePalette(const uint16_t *pal) {
-	_refreshPalette = true;
+void Video::updateGamePalette(const uint16_t *pal) {
 	for (int i = 0; i < 256 * 3; ++i) {
 		_palette[i] = pal[i] >> 8;
 	}
@@ -77,50 +72,52 @@ void Video::refreshGamePalette(const uint16_t *pal) {
 void Video::updateGameDisplay(uint8_t *buf) {
 	g_system->copyRect(0, 0, W, H, buf, 256);
 	if (_mdec.planes[kOutputPlaneY].ptr) {
-		updateYuvDisplay();
+		updateYuvDisplay(&_mdec);
 	}
 }
 
-void Video::updateYuvDisplay() {
+void Video::updateYuvDisplay(MdecOutput *mdec) {
 	g_system->copyYuv(Video::W, Video::H, _mdec.planes[0].ptr, _mdec.planes[0].pitch, _mdec.planes[1].ptr, _mdec.planes[1].pitch, _mdec.planes[2].ptr, _mdec.planes[2].pitch);
+}
+
+void Video::copyYuvBackBuffer() {
 }
 
 void Video::updateScreen() {
 	g_system->updateScreen(true);
 }
 
-void Video::fillBackBuffer() {
-	g_system->fillRect(0, 0, W, H, _fillColor);
+void Video::clearBackBuffer() {
+	g_system->fillRect(0, 0, W, H, CLEAR_COLOR);
 }
 
 void Video::clearPalette() {
 	memset(_palette, 0, sizeof(_palette));
-	_refreshPalette = true;
 	g_system->setPalette(_palette, 256);
 }
 
 void Video::decodeSPR(const uint8_t *src, uint8_t *dst, int x, int y, uint8_t flags, uint16_t spr_w, uint16_t spr_h) {
-	if (y >= _spr.h) {
+	if (y >= H) {
 		return;
-	} else if (y < _spr.y) {
+	} else if (y < 0) {
 		flags |= kSprClipTop;
 	}
 	const int y2 = y + spr_h - 1;
-	if (y2 < _spr.y) {
+	if (y2 < 0) {
 		return;
-	} else if (y2 >= _spr.h) {
+	} else if (y2 >= H) {
 		flags |= kSprClipBottom;
 	}
 
-	if (x >= _spr.w) {
+	if (x >= W) {
 		return;
-	} else if (x < _spr.x) {
+	} else if (x < 0) {
 		flags |= kSprClipLeft;
 	}
 	const int x2 = x + spr_w - 1;
-	if (x2 < _spr.x) {
+	if (x2 < 0) {
 		return;
-	} else if (x2 >= _spr.w) {
+	} else if (x2 >= W) {
 		flags |= kSprClipRight;
 	}
 
@@ -132,11 +129,11 @@ void Video::decodeSPR(const uint8_t *src, uint8_t *dst, int x, int y, uint8_t fl
 	}
 	const int xOrig = x;
 	while (1) {
-		uint8_t *p = dst + y * _spr.pitch + x;
+		uint8_t *p = dst + y * W + x;
 		int code = *src++;
 		int count = code & 0x3F;
 		int clippedCount = count;
-		if (y < _spr.y || y >= _spr.h) {
+		if (y < 0 || y >= H) {
 			clippedCount = 0;
 		}
 		switch (code >> 6) {
@@ -146,14 +143,14 @@ void Video::decodeSPR(const uint8_t *src, uint8_t *dst, int x, int y, uint8_t fl
 				x += count;
 			} else if (flags & kSprHorizFlip) {
 				for (int i = 0; i < clippedCount; ++i) {
-					if (x - i >= _spr.x && x - i < _spr.w) {
+					if (x - i >= 0 && x - i < W) {
 						p[-i] = src[i];
 					}
 				}
 				x -= count;
 			} else {
 				for (int i = 0; i < clippedCount; ++i) {
-					if (x + i >= _spr.x && x + i < _spr.w) {
+					if (x + i >= 0 && x + i < W) {
 						p[i] = src[i];
 					}
 				}
@@ -168,14 +165,14 @@ void Video::decodeSPR(const uint8_t *src, uint8_t *dst, int x, int y, uint8_t fl
 				x += count;
 			} else if (flags & kSprHorizFlip) {
 				for (int i = 0; i < clippedCount; ++i) {
-					if (x - i >= _spr.x && x - i < _spr.w) {
+					if (x - i >= 0 && x - i < W) {
 						p[-i] = code;
 					}
 				}
 				x -= count;
 			} else {
 				for (int i = 0; i < clippedCount; ++i) {
-					if (x + i >= _spr.x && x + i < _spr.w) {
+					if (x + i >= 0 && x + i < W) {
 						p[i] = code;
 					}
 				}
@@ -282,7 +279,7 @@ bool Video::clipLineCoords(int &x1, int &y1, int &x2, int &y2) {
 	return false;
 }
 
-void Video::drawLine(int x1, int y1, int x2, int y2) {
+void Video::drawLine(int x1, int y1, int x2, int y2, uint8_t color) {
 	if (clipLineCoords(x1, y1, x2, y2)) {
 		return;
 	}
@@ -290,7 +287,7 @@ void Video::drawLine(int x1, int y1, int x2, int y2) {
 	assert(y1 >= _drawLine.y1 && y1 <= _drawLine.y2);
 	assert(x2 >= _drawLine.x1 && x2 <= _drawLine.x2);
 	assert(y2 >= _drawLine.y1 && y2 <= _drawLine.y2);
-	int dstPitch = _drawLine.pitch;
+	int dstPitch = W;
 	int dx = x2 - x1;
 	if (dx == 0) {
 		int dy = y2 - y1;
@@ -298,9 +295,9 @@ void Video::drawLine(int x1, int y1, int x2, int y2) {
 			y1 += dy;
 			dy = -dy;
 		}
-		uint8_t *dst = _frontLayer + y1 * _drawLine.pitch + x1;
+		uint8_t *dst = _frontLayer + y1 * W + x1;
 		for (int i = 0; i <= dy; ++i) {
-			*dst = _drawLine.color;
+			*dst = color;
 			dst += dstPitch;
 		}
 		return;
@@ -310,10 +307,10 @@ void Video::drawLine(int x1, int y1, int x2, int y2) {
 		dx = -dx;
 		SWAP(y1, y2);
 	}
-	uint8_t *dst = _frontLayer + y1 * _drawLine.pitch + x1;
+	uint8_t *dst = _frontLayer + y1 * W + x1;
 	int dy = y2 - y1;
 	if (dy == 0) {
-		memset(dst, _drawLine.color, dx);
+		memset(dst, color, dx);
 		return;
 	}
 	if (dy < 0) {
@@ -327,7 +324,7 @@ void Video::drawLine(int x1, int y1, int x2, int y2) {
 		const int stepInc = dy * 2;
 		step -= stepInc;
 		for (int i = 0; i <= dy; ++i) {
-			*dst = _drawLine.color;
+			*dst = color;
 			step += dx;
 			if (step >= 0) {
 				step -= stepInc;
@@ -340,7 +337,7 @@ void Video::drawLine(int x1, int y1, int x2, int y2) {
 		const int stepInc = dy * 2;
 		step -= stepInc;
 		for (int i = 0; i <= dy; ++i) {
-			*dst = _drawLine.color;
+			*dst = color;
 			step += dx;
 			if (step >= 0) {
 				step -= stepInc;
@@ -362,14 +359,11 @@ void Video::applyShadowColors(int x, int y, int src_w, int src_h, int dst_pitch,
 	// src2 == shadowPalette
 
 	dst2 += y * dst_pitch + x;
-	src2 = _shadowColorLookupTable;
 	for (int j = 0; j < src_h; ++j) {
 		for (int i = 0; i < src_w; ++i) {
 			int offset = READ_LE_UINT16(src1); src1 += 2;
 			assert(offset <= W * H);
-			if (!src2) { // no LUT
-				dst2[i] = lookupColor(_shadowLayer[offset], dst2[i], _shadowColorLut);
-			} else {
+			if (kUseShadowColorLut) {
 				// build lookup offset
 				//   msb : _shadowLayer[ _projectionData[ (x, y) ] ]
 				//   lsb : _frontLayer[ (x, y) ]
@@ -378,7 +372,9 @@ void Video::applyShadowColors(int x, int y, int src_w, int src_h, int dst_pitch,
 				// lookup color matrix
 				//   if msb < 144 : _frontLayer.color
 				//   if msb >= 144 : if _frontLayer.color < 144 ? shadowPalette[ _frontLayer.color ] : _frontLayer.color
-				dst2[i] = src2[offset];
+				dst2[i] = _shadowColorLookupTable[offset];
+			} else {
+				dst2[i] = lookupColor(_shadowLayer[offset], dst2[i], _shadowColorLut);
 			}
 		}
 		dst2 += dst_pitch;
@@ -386,8 +382,8 @@ void Video::applyShadowColors(int x, int y, int src_w, int src_h, int dst_pitch,
 }
 
 void Video::buildShadowColorLookupTable(const uint8_t *src, uint8_t *dst) {
-	assert(dst == _shadowColorLookupTable);
-	if (_shadowColorLookupTable) {
+	if (kUseShadowColorLut) {
+		assert(dst == _shadowColorLookupTable);
 		// 256x256
 		//   0..143 : 0..255
 		// 144..255 : src[0..143] 144..255
@@ -404,10 +400,7 @@ void Video::buildShadowColorLookupTable(const uint8_t *src, uint8_t *dst) {
 			}
 		}
 	}
-	memcpy(_shadowColorLut, src, 144);
-	for (int i = 144; i < 256; ++i) {
-		_shadowColorLut[i] = i;
-	}
+	memcpy(_shadowColorLut, src, 144); // indexes 144-256 are not remapped
 	if (0) {
 		// lookup[a * 256 + b]
 		//
@@ -490,6 +483,7 @@ void Video::decodeBackgroundPsx(const uint8_t *src, const int size, int w, int h
 	_mdec.w = w;
 	_mdec.h = h;
 	decodeMDEC(src, size, 0, 0, w, h, &_mdec);
+	copyYuvBackBuffer();
 }
 
 void Video::decodeBackgroundOverlayPsx(const uint8_t *src, int x, int y) {

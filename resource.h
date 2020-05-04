@@ -446,7 +446,8 @@ struct SssSample {
 
 struct SssPreloadList {
 	int count;
-	uint8_t *ptr; // uint16_t for v12
+	int ptrSize;
+	uint8_t *ptr; // uint16_t for v6 or v12, uint8_t for v10
 };
 
 struct SssPreloadInfoData {
@@ -457,6 +458,7 @@ struct SssPreloadInfoData {
 	uint8_t preload1Index;
 	uint8_t preload2Index;
 	uint32_t unk1C;
+	SssPreloadList preload1Data_V6;
 }; // sizeof == 32 (v10,v12) 68 (v6)
 
 struct SssPreloadInfo {
@@ -485,11 +487,23 @@ struct SssPcm {
 	uint32_t strideSize;  // 12
 	uint16_t strideCount; // 16
 	uint16_t flags;       // 18 1:stereo
+	uint32_t pcmSize;     // decompressed PCM size in bytes
 };
 
 struct SssUnk6 {
 	uint32_t unk0[4]; // 0
 	uint32_t mask; // 10
+};
+
+struct Dem {
+	uint32_t randSeed;
+	uint32_t keyMaskLen;
+	uint8_t level;
+	uint8_t checkpoint;
+	uint8_t difficulty;
+	uint8_t randRounds;
+	uint8_t *actionKeyMask;
+	uint8_t *directionKeyMask;
 };
 
 template <typename T>
@@ -528,6 +542,11 @@ struct ResStruct {
 struct FileSystem;
 
 struct Resource {
+	enum {
+		V1_0,
+		V1_1,
+		V1_2  // 1.2 or newer
+	};
 
 	FileSystem *_fs;
 
@@ -541,6 +560,8 @@ struct Resource {
 	File *_sssFile;
 
 	bool _isPsx;
+	bool _isDemo;
+	int _version;
 
 	uint8_t *_loadingImageBuffer;
 	uint8_t *_fontBuffer;
@@ -548,22 +569,28 @@ struct Resource {
 	uint8_t *_menuBuffer1;
 	uint32_t _menuBuffersOffset;
 
+	Dem _dem;
+	uint32_t _demOffset;
+
 	uint8_t _currentScreenResourceNum;
 
 	uint8_t _screensGrid[kMaxScreens][4];
 	LvlScreenVector _screensBasePos[kMaxScreens];
 	LvlScreenState _screensState[kMaxScreens];
-	uint8_t *_resLevelData0x470CTable;
+	uint8_t *_resLevelData0x470CTable; // masks
 	uint8_t *_resLevelData0x470CTablePtrHdr;
 	uint8_t *_resLevelData0x470CTablePtrData;
-	uint32_t _lvlSssOffset;
-	uint32_t _resLevelData0x2B88SizeTable[kMaxScreens];
-	uint32_t _resLevelData0x2988SizeTable[kMaxSpriteTypes];
-	LvlObjectData _resLevelData0x2988Table[kMaxScreens];
+	uint32_t _lvlSpritesOffset;
+	uint32_t _lvlBackgroundsOffset;
+	uint32_t _lvlMasksOffset;
+	uint32_t _lvlSssOffset; // .sss offset (PSX)
+	uint32_t _resLevelData0x2988SizeTable[kMaxSpriteTypes]; // sprites
+	LvlObjectData _resLevelData0x2988Table[kMaxSpriteTypes];
 	LvlObjectData *_resLevelData0x2988PtrTable[kMaxSpriteTypes];
+	uint8_t *_resLvlSpriteDataPtrTable[kMaxSpriteTypes];
+	uint32_t _resLevelData0x2B88SizeTable[kMaxScreens]; // backgrounds
 	LvlBackgroundData _resLvlScreenBackgroundDataTable[kMaxScreens];
 	uint8_t *_resLvlScreenBackgroundDataPtrTable[kMaxScreens];
-	uint8_t *_resLvlSpriteDataPtrTable[kMaxSpriteTypes];
 
 	LvlObject _resLvlScreenObjectDataTable[104];
 	LvlObject _dummyObject; // (LvlObject *)0xFFFFFFFF
@@ -633,11 +660,11 @@ struct Resource {
 	void loadLvlScreenObjectData(LvlObject *dat, const uint8_t *src);
 	void loadLvlData(File *fp);
 	void unloadLvlData();
-	void loadLvlSpriteData(int num);
+	void loadLvlSpriteData(int num, const uint8_t *buf = 0);
 	const uint8_t *getLvlScreenMaskDataPtr(int num) const;
 	const uint8_t *getLvlScreenPosDataPtr(int num) const;
 	void loadLvlScreenMaskData();
-	void loadLvlScreenBackgroundData(int num);
+	void loadLvlScreenBackgroundData(int num, const uint8_t *buf = 0);
 	void unloadLvlScreenBackgroundData(int num);
 	bool isLvlSpriteDataLoaded(int num) const;
 	bool isLvlBackgroundDataLoaded(int num) const;
@@ -651,7 +678,6 @@ struct Resource {
 	void unloadSssData();
 	void checkSssCode(const uint8_t *buf, int size) const;
 	void loadSssPcm(File *fp, SssPcm *pcm);
-	uint32_t getSssPcmSize(const SssPcm *pcm) const;
 	void clearSssGroup3();
 	void resetSssFilters();
 	void preloadSssPcmList(const SssPreloadInfoData *preloadInfoData);
@@ -660,6 +686,9 @@ struct Resource {
 	void unloadMstData();
 	const MstScreenArea *findMstCodeForPos(int num, int xPos, int yPos) const;
 	void flagMstCodeForPos(int num, uint8_t value);
+
+	bool loadHodDem();
+	void unloadHodDem();
 
 	bool writeSetupCfg(const SetupConfig *config);
 	bool readSetupCfg(SetupConfig *config);

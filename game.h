@@ -97,6 +97,7 @@ struct Game {
 	bool _loadingScreenEnabled;
 
 	SetupConfig _setupConfig;
+	bool _playDemo;
 	bool _resumeGame;
 
 	LvlObject *_screenLvlObjectsList[kMaxScreens]; // LvlObject linked list for each screen
@@ -243,7 +244,7 @@ struct Game {
 	uint32_t benchmarkCpu();
 
 	// game.cpp
-	void mainLoop(int &level, int &checkpoint, bool levelChanged);
+	void mainLoop(int level, int checkpoint, bool levelChanged);
 	void mixAudio(int16_t *buf, int len);
 	void resetShootLvlObjectDataTable();
 	void clearShootLvlObjectData(LvlObject *ptr);
@@ -257,6 +258,7 @@ struct Game {
 	void playSound(int num, LvlObject *ptr, int a, int b);
 	void removeSound(LvlObject *ptr);
 	void setupBackgroundBitmap();
+	void addToSpriteList(Sprite *spr);
 	void addToSpriteList(LvlObject *ptr);
 	int16_t calcScreenMaskDy(int16_t xPos, int16_t yPos, int num);
 	void setupScreenPosTable(uint8_t num);
@@ -289,9 +291,9 @@ struct Game {
 	void removeLvlObject2(LvlObject *o);
 	void setAndySprite(int num);
 	void setupAndyLvlObject();
-	void updateScreenHelper(int num);
+	void setupScreenLvlObjects(int num);
 	void resetDisplay();
-	void updateScreen(uint8_t num);
+	void setupScreen(uint8_t num);
 	void resetScreen();
 	void restartLevel();
 	void playAndyFallingCutscene(int type);
@@ -376,7 +378,7 @@ struct Game {
 
 	// level1_rock.cpp
 	int objectUpdate_rock_case0(LvlObject *o);
-	void objectUpdate_rock_helper(LvlObject *ptr, uint8_t *p);
+	void objectUpdate_rockShadow(LvlObject *ptr, uint8_t *p);
 	bool plasmaCannonHit(LvlObject *ptr);
 	int objectUpdate_rock_case1(LvlObject *o);
 	int objectUpdate_rock_case2(LvlObject *o);

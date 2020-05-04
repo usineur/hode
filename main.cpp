@@ -3,7 +3,12 @@
  * Copyright (C) 2009-2011 Gregory Montoir (cyx@users.sourceforge.net)
  */
 
+#if !defined(PSP) && !defined(WII)
 #include <SDL.h>
+#endif
+#if defined(WII)
+#include <fat.h>
+#endif
 #include <getopt.h>
 #include <sys/stat.h>
 
@@ -59,7 +64,6 @@ static void mixAudio(void *userdata, int16_t *buf, int len) {
 
 static void setupAudio(Game *g) {
 	g->_mix._lock = lockAudio;
-	g->_mix.init(g_system->getOutputSampleRate());
 	AudioCallback cb;
 	cb.proc = mixAudio;
 	cb.userdata = g;
@@ -146,6 +150,23 @@ int main(int argc, char *argv[]) {
 	g_debugMask = 0; //kDebug_GAME | kDebug_RESOURCE | kDebug_SOUND | kDebug_MONSTER;
 	int cheats = 0;
 
+#ifdef WII
+	fatInitDefault();
+	static const char *pathsWII[] = {
+		"sd:/hode",
+		"usb:/hode",
+		0
+	};
+	for (int i = 0; pathsWII[i]; ++i) {
+		struct stat st;
+		if (stat(pathsWII[i], &st) == 0 && S_ISDIR(st.st_mode)) {
+			dataPath = strdup(pathsWII[i]);
+			savePath = strdup(pathsWII[i]);
+			break;
+		}
+	}
+#else
+#if !defined(PSP)
 	if (argc == 2) {
 		// data path as the only command line argument
 		struct stat st;
@@ -203,6 +224,8 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 	}
+#endif
+#endif
 	Game *g = new Game(dataPath ? dataPath : _defaultDataPath, savePath ? savePath : _defaultSavePath, cheats);
 	ini_parse(_configIni, handleConfigIni, g);
 	if (_runBenchmark) {
@@ -216,6 +239,7 @@ int main(int argc, char *argv[]) {
 	g->loadSetupCfg(resume);
 	bool runGame = true;
 	g->_video->init(isPsx);
+	g->displayLoadingScreen();
 	if (_runMenu && resume && !isPsx) {
 		Menu *m = new Menu(g, g->_paf, g->_res, g->_video);
 		runGame = m->mainLoop();
@@ -224,23 +248,30 @@ int main(int argc, char *argv[]) {
 	if (runGame && !g_system->inp.quit) {
 		bool levelChanged = false;
 		do {
+			g->displayLoadingScreen();
 			g->mainLoop(level, checkpoint, levelChanged);
 			// do not save progress when game is started from a specific level/checkpoint
 			if (resume) {
 				g->saveSetupCfg();
 			}
-			level += 1;
+			if (g->_res->_isDemo) {
+				break;
+			}
+			level = g->_currentLevel + 1;
 			checkpoint = 0;
 			levelChanged = true;
 		} while (!g_system->inp.quit && level < kLvl_test);
 	}
 	g_system->stopAudio();
-	g->_mix.fini();
 	g_system->destroy();
 	delete g;
 #ifndef __vita__
 	free(dataPath);
 	free(savePath);
+#endif
+#ifdef WII
+	fatUnmount("sd:/");
+	fatUnmount("usb:/");
 #endif
 #ifdef __SWITCH__
 	socketExit();

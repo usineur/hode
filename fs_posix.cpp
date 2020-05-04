@@ -8,6 +8,7 @@
 #include "util.h"
 
 static const char *_suffixes[] = {
+	"hod.dem",
 	"setup.dat",
 	"setup.dax",
 	".paf",

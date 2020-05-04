@@ -162,7 +162,7 @@ void Level_rock::postScreenUpdate_rock_screen9() {
 				if (!_paf->_skipCutscenes) {
 					_paf->play(1);
 					_res->_resLvlScreenBackgroundDataTable[9].currentBackgroundId = 1;
-					_video->_paletteNeedRefresh = true;
+					_video->_paletteChanged = true;
 				}
 				if (_checkpoint == 4) {
 					_checkpoint = 5;
@@ -174,7 +174,7 @@ void Level_rock::postScreenUpdate_rock_screen9() {
 				_andyObject->anim = 232;
 				_andyObject->frame = 0;
 				_g->setupLvlObjectBitmap(_andyObject);
-				_g->updateScreen(_andyObject->screenNum);
+				_g->setupScreen(_andyObject->screenNum);
 			}
 			break;
 		case 1:
@@ -257,6 +257,7 @@ void Level_rock::postScreenUpdate_rock_screen16() {
 }
 
 void Level_rock::postScreenUpdate_rock_screen18() {
+	LvlObject *o;
 	switch (_res->_screensState[18].s0) {
 	case 0:
 		if (_andyObject->yPos + _andyObject->height < 162) {
@@ -273,16 +274,19 @@ void Level_rock::postScreenUpdate_rock_screen18() {
 		}
 		break;
 	case 2:
+		o = _g->findLvlObject(2, 0, 18);
 		++_screenCounterTable[18];
-		if (_screenCounterTable[18] == 29) {
-			LvlObject *o = _g->findLvlObject(2, 0, 18);
+		if (_res->_version >= Resource::V1_2) {
 			o->actionKeyMask = 1;
-		} else if (_screenCounterTable[18] == 43) {
+		} else if (_screenCounterTable[18] == 29) {
+			o->actionKeyMask = 1;
+			break;
+		}
+		if (_screenCounterTable[18] == 43) {
 			_g->setShakeScreen(2, 5);
 			_res->_resLvlScreenBackgroundDataTable[18].currentMaskId = 1;
 			_g->setupScreenMask(18);
-		} else if (_screenCounterTable[18] < 57) {
-			LvlObject *o = _g->findLvlObject(2, 0, 18);
+		} else if (_screenCounterTable[18] < (_res->_version >= Resource::V1_2 ? 51 : 57)) {
 			if ((o->flags0 & 0x1F) != 11 || (_andyObject->flags0 & 0x1F) == 11) {
 				break;
 			}
@@ -334,7 +338,7 @@ void Level_rock::postScreenUpdate_rock_screen19() {
 			if (!_paf->_skipCutscenes) {
 				_paf->play(2);
 				_paf->unload(2);
-				if (false /* _isDemo */ && !_paf->_skipCutscenes) {
+				if (_res->_isDemo && !_paf->_skipCutscenes) {
 					_paf->play(21);
 				}
 			}
@@ -419,9 +423,9 @@ static const uint8_t _level1OpHelper1KeyMaskTable[112] = {
 	8, 4, 8, 4, 8, 4, 8, 4, 8, 4, 8, 0, 8, 0, 4, 0
 };
 
-void Game::objectUpdate_rock_helper(LvlObject *ptr, uint8_t *p) {
+void Game::objectUpdate_rockShadow(LvlObject *ptr, uint8_t *p) {
 	const bool sameScreen = (_andyObject->screenNum == ptr->screenNum);
-	int i = (_andyObject->width / 2 + _andyObject->xPos + (_andyObject->xPos & 7)) / 8;
+	int i = (_andyObject->width / 2 + _andyObject->xPos) / 8;
 	if (i < 0 || ptr->screenNum != _res->_currentScreenResourceNum) {
 		i = 0;
 	} else if (i > 31) {
@@ -451,7 +455,7 @@ void Game::objectUpdate_rock_helper(LvlObject *ptr, uint8_t *p) {
 		}
 	}
 	if ((ptr->directionKeyMask & 4) != 0) {
-		if (ptr->anim != 1 || ptr->frame != p[64]) {
+		if (o->anim != 1 || o->frame != p[64]) {
 			ptr->directionKeyMask &= ~4;
 		}
 	}
@@ -478,9 +482,9 @@ bool Game::plasmaCannonHit(LvlObject *ptr) {
 	if (ptr->bitmapBits) {
 		int dx = 0;
 		if (ptr->screenNum == _currentLeftScreen) {
-			dx = -256;
+			dx = -Video::W;
 		} else if (ptr->screenNum == _currentRightScreen) {
-			dx = 256;
+			dx = Video::W;
 		} else if (ptr->screenNum != _currentScreen) {
 			return false;
 		}
@@ -503,7 +507,7 @@ int Game::objectUpdate_rock_case1(LvlObject *o) {
 		0x0C, 0x07, 0x00, 0x00
 	};
 	if (_level->_screenCounterTable[2] == 0) {
-		objectUpdate_rock_helper(o, data);
+		objectUpdate_rockShadow(o, data);
 		if ((o->flags0 & 0x3FF) == 0x4B) {
 			_level->_screenCounterTable[2] = 1;
 		}
@@ -522,7 +526,7 @@ int Game::objectUpdate_rock_case2(LvlObject *o) {
 		0x06, 0x0B, 0x00, 0x00
 	};
 	if (_level->_screenCounterTable[3] == 0) {
-		objectUpdate_rock_helper(o, data);
+		objectUpdate_rockShadow(o, data);
 		if ((o->flags0 & 0x3FF) == 0x4B) {
 			_level->_screenCounterTable[3] = 1;
 		}
@@ -619,7 +623,12 @@ void Level_rock::preScreenUpdate_rock_screen4() {
 		break;
 	}
 	_res->_resLvlScreenBackgroundDataTable[4].currentBackgroundId = num;
-	_res->_resLvlScreenBackgroundDataTable[4].currentShadowId = num;
+	// bugfix: glitch when re-entering screen 4 (state 1) from screen 3.
+	// drawScreen() calls applyShadowColors() from 0 to shadowsCount. Setting
+	// currentShadowId to 1 will result in screen 3 shadow mask (index #0) to
+	// be applied where it shouldn't. Another fix would be iterating from
+	// currentShadowId to shadowsCount, similar to decodeShadowScreenMask.
+	// _res->_resLvlScreenBackgroundDataTable[4].currentShadowId = num;
 	_res->_resLvlScreenBackgroundDataTable[4].currentMaskId = num;
 	if (_res->_currentScreenResourceNum == 4 && _checkpoint == 1) {
 		_checkpoint = 2;

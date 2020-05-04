@@ -10,11 +10,20 @@
 #include "resource.h"
 #include "util.h"
 
+// load and uncompress .sss pcm on level start
+static const bool kPreloadSssPcm = true;
+
+static const bool kPreloadLvlBackgroundData = true;
+
+static const bool kCheckSssBytecode = false;
+
 // menu settings and player progress
 static const char *_setupCfg = "setup.cfg";
 
 static const char *_setupDat = "SETUP.DAT";
 static const char *_setupDax = "SETUP.DAX";
+
+static const char *_hodDem = "HOD.DEM";
 
 static const char *_prefixes[] = {
 	"rock",
@@ -33,6 +42,7 @@ static bool openDat(FileSystem *fs, const char *name, File *f) {
 	FILE *fp = fs->openAssetFile(name);
 	if (fp) {
 		f->setFp(fp);
+		f->seek(0, SEEK_SET);
 		return true;
 	}
 	return false;
@@ -60,7 +70,7 @@ static int readBytesAlign(File *f, uint8_t *buf, int len) {
 }
 
 Resource::Resource(FileSystem *fs)
-	: _fs(fs), _isPsx(false) {
+	: _fs(fs), _isPsx(false), _isDemo(false), _version(V1_1) {
 
 	memset(_screensGrid, 0, sizeof(_screensGrid));
 	memset(_screensBasePos, 0, sizeof(_screensBasePos));
@@ -70,6 +80,7 @@ Resource::Resource(FileSystem *fs)
 	_resLevelData0x470CTable = 0;
 	_resLevelData0x470CTablePtrHdr = 0;
 	_resLevelData0x470CTablePtrData = 0;
+
 	_lvlSssOffset = 0;
 
 	// sprites
@@ -91,21 +102,51 @@ Resource::Resource(FileSystem *fs)
 		_lvlFile = new SectorFile;
 		_mstFile = new SectorFile;
 		_sssFile = new SectorFile;
+		// from v1.2, game data files are 'sector aligned'
+		_version = V1_2;
 	} else {
 		_datFile = new File;
 		_lvlFile = new File;
 		_mstFile = new File;
 		_sssFile = new File;
+		// detect if this is version 1.0 by reading the size of the first screen background using the v1.1 offset
+		char filename[32];
+		snprintf(filename, sizeof(filename), "%s_HOD.LVL", _prefixes[0]);
+		if (openDat(_fs, filename, _lvlFile)) {
+			_lvlFile->seek(0x2B88, SEEK_SET);
+			_lvlFile->skipUint32();
+			const int size = _lvlFile->readUint32();
+			if (size == 0) {
+				_version = V1_0;
+			}
+			closeDat(_fs, _lvlFile);
+		}
 	}
+	// detect if this is a demo version by trying to open the second level data files
+	char filename[32];
+	snprintf(filename, sizeof(filename), "%s_HOD.LVL", _prefixes[1]);
+	if (openDat(_fs, filename, _lvlFile)) {
+		closeDat(_fs, _lvlFile);
+	} else {
+		_isDemo = true;
+	}
+	debug(kDebug_RESOURCE, "psx %d demo %d version %d", _isPsx, _isDemo, _version);
 	memset(&_datHdr, 0, sizeof(_datHdr));
 	memset(&_lvlHdr, 0, sizeof(_lvlHdr));
 	memset(&_mstHdr, 0, sizeof(_mstHdr));
 	memset(&_sssHdr, 0, sizeof(_sssHdr));
 
+	_lvlSpritesOffset = 0x288 + 96 * (_version == V1_0 ? 96 : 104);
+	_lvlBackgroundsOffset = _lvlSpritesOffset + 32 * 16;
+	_lvlMasksOffset = _lvlBackgroundsOffset + kMaxScreens * (16 + 160);
+
 	_loadingImageBuffer = 0;
 	_fontBuffer = 0;
 	_menuBuffer0 = 0;
 	_menuBuffer1 = 0;
+
+	memset(&_dem, 0, sizeof(_dem));
+	_demOffset = 0;
 }
 
 Resource::~Resource() {
@@ -164,7 +205,8 @@ void Resource::loadSetupDat() {
 	for (int i = 0; i < hintsCount; ++i) {
 		_datHdr.hintsImageSizeTable[i] = _datFile->readUint32();
 	}
-	_datFile->seek(2048, SEEK_SET); // align to the next sector
+	_datFile->seek(2048, SEEK_SET); // align to next sector
+
 	_loadingImageBuffer = (uint8_t *)malloc(_datHdr.loadingImageSize);
 	if (_loadingImageBuffer) {
 		_datFile->read(_loadingImageBuffer, _datHdr.loadingImageSize);
@@ -205,7 +247,9 @@ bool Resource::loadDatHintImage(int num, uint8_t *dst, uint8_t *pal) {
 		assert(size == 256 * 192);
 		_datFile->seek(offset, SEEK_SET);
 		_datFile->read(dst, size);
-		_datFile->flush();
+		if (_datHdr.version == 11) {
+			_datFile->seek(offset + fioAlignSizeTo2048(size), SEEK_SET); // align to next sector
+		}
 		_datFile->read(pal, 768);
 		return true;
 	}
@@ -229,15 +273,14 @@ void Resource::loadDatMenuBuffers() {
 	_datFile->seek(_datHdr.sssOffset, SEEK_SET);
 	loadSssData(_datFile, _datHdr.sssOffset);
 
-	uint32_t baseOffset = _menuBuffersOffset;
+	const uint32_t baseOffset = _menuBuffersOffset;
 	_datFile->seek(baseOffset, SEEK_SET);
 	_menuBuffer1 = (uint8_t *)malloc(_datHdr.bufferSize1);
 	if (_menuBuffer1) {
 		_datFile->read(_menuBuffer1, _datHdr.bufferSize1);
 	}
 	if (_datHdr.version == 11) {
-		baseOffset += fioAlignSizeTo2048(_datHdr.bufferSize1); // align to the next sector
-		_datFile->seek(baseOffset, SEEK_SET);
+		_datFile->seek(baseOffset + fioAlignSizeTo2048(_datHdr.bufferSize1), SEEK_SET); // align to next sector
 	}
 	_menuBuffer0 = (uint8_t *)malloc(_datHdr.bufferSize0);
 	if (_menuBuffer0) {
@@ -434,16 +477,22 @@ static uint32_t resFixPointersLevelData0x2988(uint8_t *src, uint8_t *ptr, LvlObj
 	return (dat->framesCount + dat->coordsCount) * sizeof(uint32_t);
 }
 
-void Resource::loadLvlSpriteData(int num) {
+void Resource::loadLvlSpriteData(int num, const uint8_t *buf) {
 	assert((unsigned int)num < kMaxSpriteTypes);
 
-	static const uint32_t baseOffset = 0x2988;
+	static const uint32_t baseOffset = _lvlSpritesOffset;
 
-	uint8_t buf[4 * 3];
-	_lvlFile->seekAlign(baseOffset + num * 16);
-	_lvlFile->read(buf, sizeof(buf));
+	uint8_t header[3 * sizeof(uint32_t)];
+	if (!buf) {
+		_lvlFile->seekAlign(baseOffset + num * 16);
+		_lvlFile->read(header, sizeof(header));
+		buf = header;
+	}
 	const uint32_t offset = READ_LE_UINT32(&buf[0]);
 	const uint32_t size = READ_LE_UINT32(&buf[4]);
+	if (size == 0) {
+		return;
+	}
 	const uint32_t readSize = READ_LE_UINT32(&buf[8]);
 	assert(readSize <= size);
 	uint8_t *ptr = (uint8_t *)malloc(size);
@@ -473,7 +522,7 @@ const uint8_t *Resource::getLvlScreenPosDataPtr(int num) const {
 }
 
 void Resource::loadLvlScreenMaskData() {
-	_lvlFile->seekAlign(0x4708);
+	_lvlFile->seekAlign(_lvlMasksOffset);
 	const uint32_t offset = _lvlFile->readUint32();
 	const uint32_t size = _lvlFile->readUint32();
 	_resLevelData0x470CTable = (uint8_t *)malloc(size);
@@ -526,7 +575,9 @@ void Resource::loadLvlData(File *fp) {
 	}
 	_lvlFile->seekAlign(0x288);
 	static const int kSizeOfLvlObject = 96;
-	for (int i = 0; i < (0x2988 - 0x288) / kSizeOfLvlObject; ++i) {
+	const int lvlObjectsCount = (_lvlSpritesOffset - 0x288) / kSizeOfLvlObject;
+	debug(kDebug_RESOURCE, "Resource::loadLvlData() lvlObjectsCount %d", lvlObjectsCount);
+	for (int i = 0; i < lvlObjectsCount; ++i) {
 		LvlObject *dat = &_resLvlScreenObjectDataTable[i];
 		uint8_t buf[kSizeOfLvlObject];
 		_lvlFile->read(buf, kSizeOfLvlObject);
@@ -535,12 +586,27 @@ void Resource::loadLvlData(File *fp) {
 
 	loadLvlScreenMaskData();
 
-	memset(_resLevelData0x2B88SizeTable, 0, sizeof(_resLevelData0x2B88SizeTable));
 	memset(_resLevelData0x2988SizeTable, 0, sizeof(_resLevelData0x2988SizeTable));
 	memset(_resLevelData0x2988PtrTable, 0, sizeof(_resLevelData0x2988PtrTable));
 
+	_lvlFile->seekAlign(_lvlSpritesOffset);
+	uint8_t spr[kMaxSpriteTypes * 16];
+	assert(_lvlHdr.spritesCount <= kMaxSpriteTypes);
+	_lvlFile->read(spr, _lvlHdr.spritesCount * 16);
 	for (int i = 0; i < _lvlHdr.spritesCount; ++i) {
-		loadLvlSpriteData(i);
+		loadLvlSpriteData(i, spr + i * 16);
+	}
+
+	memset(_resLevelData0x2B88SizeTable, 0, sizeof(_resLevelData0x2B88SizeTable));
+
+	if (kPreloadLvlBackgroundData) {
+		_lvlFile->seekAlign(_lvlBackgroundsOffset);
+		uint8_t buf[kMaxScreens * 16];
+		assert(_lvlHdr.screensCount <= kMaxScreens);
+		_lvlFile->read(buf, _lvlHdr.screensCount * 16);
+		for (unsigned int i = 0; i < _lvlHdr.screensCount; ++i) {
+			loadLvlScreenBackgroundData(i, buf + i * 16);
+		}
 	}
 }
 
@@ -616,16 +682,22 @@ static uint32_t resFixPointersLevelData0x2B88(const uint8_t *src, uint8_t *ptr, 
 	return offsetsSize;
 }
 
-void Resource::loadLvlScreenBackgroundData(int num) {
+void Resource::loadLvlScreenBackgroundData(int num, const uint8_t *buf) {
 	assert((unsigned int)num < kMaxScreens);
 
-	static const uint32_t baseOffset = 0x2B88;
+	static const uint32_t baseOffset = _lvlBackgroundsOffset;
 
-	uint8_t buf[4 * 3];
-	_lvlFile->seekAlign(baseOffset + num * 16);
-	_lvlFile->read(buf, sizeof(buf));
+	uint8_t header[3 * sizeof(uint32_t)];
+	if (!buf) {
+		_lvlFile->seekAlign(baseOffset + num * 16);
+		_lvlFile->read(header, sizeof(header));
+		buf = header;
+	}
 	const uint32_t offset = READ_LE_UINT32(&buf[0]);
 	const uint32_t size = READ_LE_UINT32(&buf[4]);
+	if (size == 0) {
+		return;
+	}
 	const uint32_t readSize = READ_LE_UINT32(&buf[8]);
 	assert(readSize <= size);
 	uint8_t *ptr = (uint8_t *)malloc(size);
@@ -725,11 +797,6 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 	assert(fp == _sssFile || fp == _datFile || fp == _lvlFile);
 
 	if (_sssHdr.bufferSize != 0) {
-		const int count = MIN(_sssHdr.pcmCount, _sssHdr.preloadPcmCount);
-		for (int i = 0; i < count; ++i) {
-			free(_sssPcmTable[i].ptr);
-			_sssPcmTable[i].ptr = 0;
-		}
 		unloadSssData();
 		_sssHdr.bufferSize = 0;
 		_sssHdr.infosDataCount = 0;
@@ -761,6 +828,8 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 
 	const int bufferSize = _sssHdr.bufferSize + _sssHdr.filtersDataCount * 52 + _sssHdr.banksDataCount * 56;
 	debug(kDebug_RESOURCE, "bufferSize %d", bufferSize);
+
+	const bool preloadPcm = (fp == _datFile) || (kPreloadSssPcm && !_isPsx);
 
 	// fp->flush();
 	fp->seek(baseOffset + 2048, SEEK_SET); // align to the next sector
@@ -828,15 +897,16 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 		bytesRead += _sssHdr.preloadData3Count * 4;
 
 		_sssPreload1Table.allocate(_sssHdr.preloadData1Count);
-		const bool is16Bits = (_sssHdr.version == 12);
+		const int ptrSize = (_sssHdr.version == 12) ? 2 : 1;
 		for (int i = 0; i < _sssHdr.preloadData1Count; ++i) {
-			const int count = is16Bits ? fp->readUint16() : fp->readByte();
+			const int count = (ptrSize == 2) ? fp->readUint16() : fp->readByte();
 			debug(kDebug_RESOURCE, "sssPreloadData1 #%d count %d", i, count);
 			_sssPreload1Table[i].count = count;
-			const int tableSize = is16Bits ? count * 2 : count;
+			_sssPreload1Table[i].ptrSize = ptrSize;
+			const int tableSize = ptrSize * count;
 			_sssPreload1Table[i].ptr = (uint8_t *)malloc(tableSize);
 			fp->read(_sssPreload1Table[i].ptr, tableSize);
-			bytesRead += tableSize + (is16Bits ? 2 : 1);
+			bytesRead += tableSize + ptrSize;
 		}
 		for (int i = 0; i < _sssHdr.preloadData2Count; ++i) {
 			const int count = fp->readByte();
@@ -869,7 +939,7 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 		static const int kSizeOfPreloadInfoData_V10 = 32;
 		for (int i = 0; i < _sssHdr.preloadInfoCount; ++i) {
 			const int count = _sssPreloadInfosData[i].count;
-			_sssPreloadInfosData[i].data = (SssPreloadInfoData *)malloc(count * sizeof(SssPreloadInfoData));
+			_sssPreloadInfosData[i].data = (SssPreloadInfoData *)calloc(count, sizeof(SssPreloadInfoData));
 			for (int j = 0; j < count; ++j) {
 				SssPreloadInfoData *preloadInfoData = &_sssPreloadInfosData[i].data[j];
 				preloadInfoData->pcmBlockOffset = fp->readUint16();
@@ -896,23 +966,35 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 		}
 	} else if (_sssHdr.version == 6) {
 		static const int kSizeOfPreloadInfoData_V6 = 68;
+		assert((unsigned int)_sssHdr.preloadInfoCount < kMaxScreens);
+		uint8_t buffer[kMaxScreens * kSizeOfPreloadInfoData_V6];
+
 		for (int i = 0; i < _sssHdr.preloadInfoCount; ++i) {
 			const int count = _sssPreloadInfosData[i].count;
-			uint8_t *p = (uint8_t *)malloc(kSizeOfPreloadInfoData_V6 * count);
-			fp->read(p, kSizeOfPreloadInfoData_V6 * count);
+			_sssPreloadInfosData[i].data = (SssPreloadInfoData *)calloc(count, sizeof(SssPreloadInfoData));
+
+			fp->read(buffer, kSizeOfPreloadInfoData_V6 * count);
 			bytesRead += kSizeOfPreloadInfoData_V6 * count;
+
 			for (int j = 0; j < count; ++j) {
-				static const int8_t offsets[8] = { 0x2C, 0x30, 0x34, 0x04, 0x08, 0x0C, 0x10, 0x14 };
-				static const int8_t lengths[8] = {    2,    1,    1,    2,    2,    1,    1,    1 };
-				for (int k = 0; k < 8; ++k) {
-					const int len = READ_LE_UINT32(p + j * kSizeOfPreloadInfoData_V6 + offsets[k]) * lengths[k];
+				SssPreloadInfoData *preloadInfoData = &_sssPreloadInfosData[i].data[j];
+				preloadInfoData->screenNum = buffer[j * kSizeOfPreloadInfoData_V6];
+
+				// 0x2C is pcm preload list
+				preloadInfoData->preload1Data_V6.count = READ_LE_UINT32(buffer + j * kSizeOfPreloadInfoData_V6 + 0x2C);
+				preloadInfoData->preload1Data_V6.ptrSize = 2;
+				const int preload1DataLen = ((preloadInfoData->preload1Data_V6.count * 2) + 3) & ~3;
+				preloadInfoData->preload1Data_V6.ptr = (uint8_t *)malloc(preload1DataLen);
+				bytesRead += fp->read(preloadInfoData->preload1Data_V6.ptr, preload1DataLen);
+
+				static const int8_t offsets[7] = { 0x30, 0x34, 0x04, 0x08, 0x0C, 0x10, 0x14 };
+				static const int8_t lengths[7] = {    1,    1,    2,    2,    1,    1,    1 };
+				for (int k = 0; k < 7; ++k) {
+					const int len = READ_LE_UINT32(buffer + j * kSizeOfPreloadInfoData_V6 + offsets[k]) * lengths[k];
 					bytesRead += skipBytesAlign(fp, len);
 				}
 			}
-			free(p);
 		}
-		_sssPreloadInfosData.deallocate();
-		_sssHdr.preloadInfoCount = 0;
 	}
 
 	_sssPcmTable.allocate(_sssHdr.pcmCount);
@@ -933,6 +1015,15 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 				_sssPcmTable[i].offset += sssPcmOffset;
 				sssPcmOffset += _sssPcmTable[i].totalSize;
 			}
+			if (_isPsx) {
+				assert(_sssPcmTable[i].strideSize == 512);
+				_sssPcmTable[i].pcmSize = (_sssPcmTable[i].totalSize / 16) * 56 * sizeof(int16_t);
+			} else {
+				assert(_sssPcmTable[i].strideSize == 2276 || _sssPcmTable[i].strideSize == 4040);
+				_sssPcmTable[i].pcmSize = (_sssPcmTable[i].totalSize - 256 * sizeof(int16_t) * _sssPcmTable[i].strideCount) * sizeof(int16_t);
+			}
+		} else {
+			_sssPcmTable[i].pcmSize = 0;
 		}
 		bytesRead += 20;
 	}
@@ -955,17 +1046,19 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 	}
 
 	const int lutSize = _sssHdr.banksDataCount * sizeof(uint32_t);
+	// allocate structures but skip read as tables are initialized in clearSoundObjects()
+	fp->seek(lutSize * 3 * 3, SEEK_CUR);
+	bytesRead += lutSize * 3 * 3;
 	for (int i = 0; i < 3; ++i) {
-		// allocate structures but skip read as tables are initialized in clearSoundObjects()
 		_sssGroup1[i] = (uint32_t *)malloc(lutSize);
 		_sssGroup2[i] = (uint32_t *)malloc(lutSize);
 		_sssGroup3[i] = (uint32_t *)malloc(lutSize);
-		fp->seek(lutSize * 3, SEEK_CUR);
-		bytesRead += lutSize * 3;
 	}
 	// _sssPreloadedPcmTotalSize = 0;
 
-	checkSssCode(_sssCodeData, _sssHdr.codeSize);
+	if (kCheckSssBytecode) {
+		checkSssCode(_sssCodeData, _sssHdr.codeSize);
+	}
 	for (int i = 0; i < _sssHdr.banksDataCount; ++i) {
 		if (_sssBanksData[i].count != 0) {
 			// const int num = _sssBanksData[i].firstSampleIndex;
@@ -979,11 +1072,12 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 	if (bufferSize != bytesRead) {
 		error("Unexpected number of bytes read %d (%d)", bytesRead, bufferSize);
 	}
-	// preload PCM (_sssHdr.preloadPcmCount or setup.dat)
-	if (fp == _datFile) {
+	if (preloadPcm) {
 		fp->seek(_sssPcmTable[0].offset, SEEK_SET);
 		for (int i = 0; i < _sssHdr.pcmCount; ++i) {
-			loadSssPcm(fp, &_sssPcmTable[i]);
+			if (_sssPcmTable[i].pcmSize != 0) {
+				loadSssPcm(fp, &_sssPcmTable[i]);
+			}
 		}
 	}
 	for (int i = 0; i < _sssHdr.banksDataCount; ++i) {
@@ -1015,6 +1109,13 @@ void Resource::unloadSssData() {
 		_sssPreload1Table[i].ptr = 0;
 	}
 	for (unsigned int i = 0; i < _sssPreloadInfosData.count; ++i) {
+		if (_sssHdr.version == 6) {
+			for (unsigned int j = 0; j < _sssPreloadInfosData[i].count; ++j) {
+				SssPreloadInfoData *preloadInfoData = &_sssPreloadInfosData[i].data[j];
+				free(preloadInfoData->preload1Data_V6.ptr);
+				preloadInfoData->preload1Data_V6.ptr = 0;
+			}
+		}
 		free(_sssPreloadInfosData[i].data);
 		_sssPreloadInfosData[i].data = 0;
 	}
@@ -1073,61 +1174,55 @@ static void decodeSssSpuAdpcmUnit(const uint8_t *src, int16_t *dst) { // src: 16
 		const int s1 = (t1 << shift) + ((_pcmL0 * K0_1024[filter] + _pcmL1 * K1_1024[filter] + 512) >> 10);
 		_pcmL1 = _pcmL0;
 		_pcmL0 = s1;
-		dst[0] = dst[1] = CLIP(_pcmL0, -32768, 32767);
+		dst[0] = (_pcmL1 + _pcmL0) >> 1;
+		dst[1] = CLIP(_pcmL0, -32768, 32767);
 		dst += 2;
 		const int t2 = sext8(b >> 4, 4);
 		const int s2 = (t2 << shift) + ((_pcmL0 * K0_1024[filter] + _pcmL1 * K1_1024[filter] + 512) >> 10);
 		_pcmL1 = _pcmL0;
 		_pcmL0 = s2;
-		dst[0] = dst[1] = CLIP(_pcmL0, -32768, 32767);
+		dst[0] = (_pcmL1 + _pcmL0) >> 1;
+		dst[1] = CLIP(_pcmL0, -32768, 32767);
 		dst += 2;
 	}
 }
 
-uint32_t Resource::getSssPcmSize(const SssPcm *pcm) const {
-	if (_isPsx) {
-		assert(pcm->strideSize == 512);
-		const uint32_t size = pcm->strideCount * 512;
-		return (size / 16) * 56 * sizeof(int16_t);
-	}
-	return (pcm->strideSize - 256 * sizeof(int16_t)) * pcm->strideCount * sizeof(int16_t);
-}
-
 void Resource::loadSssPcm(File *fp, SssPcm *pcm) {
 	assert(!pcm->ptr);
-	if (pcm->totalSize != 0) {
-		const uint32_t decompressedSize = getSssPcmSize(pcm);
-		debug(kDebug_SOUND, "Loading PCM %p decompressedSize %d", pcm, decompressedSize);
-		int16_t *p = (int16_t *)malloc(decompressedSize);
-		if (!p) {
-			warning("Failed to allocate %d bytes for PCM", decompressedSize);
-			return;
-		}
-		pcm->ptr = p;
-		if (_isPsx) {
-			for (int i = 0; i < pcm->strideCount; ++i) {
-				uint8_t buf[512];
-				fp->read(buf, sizeof(buf));
-				_pcmL1 = _pcmL0 = 0;
-				for (int j = 0; j < 512; j += 16) {
-					decodeSssSpuAdpcmUnit(buf + j, p);
-					p += 56;
-				}
+	const uint32_t decompressedSize = pcm->pcmSize;
+	debug(kDebug_SOUND, "Loading PCM %p decompressedSize %d", pcm, decompressedSize);
+	int16_t *p = (int16_t *)malloc(decompressedSize);
+	if (!p) {
+		warning("Failed to allocate %d bytes for PCM", decompressedSize);
+		return;
+	}
+	pcm->ptr = p;
+	if (_isPsx) {
+		assert(pcm->strideSize == 512);
+		uint8_t strideBuffer[512];
+		for (int i = 0; i < pcm->strideCount; ++i) {
+			fp->read(strideBuffer, sizeof(strideBuffer));
+			_pcmL1 = _pcmL0 = 0;
+			for (unsigned int j = 0; j < 512; j += 16) {
+				decodeSssSpuAdpcmUnit(strideBuffer + j, p);
+				p += 56;
 			}
-			return;
 		}
+	} else {
 		if (fp != _datFile) {
 			fp->seek(pcm->offset, SEEK_SET);
 		}
+		const uint32_t strideSize = pcm->strideSize;
+		assert(strideSize == 2276 || strideSize == 4040);
+		uint8_t strideBuffer[4040]; // maximum stride size
 		for (int i = 0; i < pcm->strideCount; ++i) {
-			uint8_t samples[256 * sizeof(int16_t)];
-			fp->read(samples, sizeof(samples));
-			for (unsigned int j = 256 * sizeof(int16_t); j < pcm->strideSize; ++j) {
-				*p++ = READ_LE_UINT16(samples + fp->readByte() * sizeof(int16_t));
+			fp->read(strideBuffer, strideSize);
+			for (unsigned int j = 256 * sizeof(int16_t); j < strideSize; ++j) {
+				*p++ = READ_LE_UINT16(strideBuffer + strideBuffer[j] * sizeof(int16_t));
 			}
 		}
-		assert((p - pcm->ptr) * sizeof(int16_t) == decompressedSize);
 	}
+	assert((p - pcm->ptr) * sizeof(int16_t) == decompressedSize);
 }
 
 void Resource::clearSssGroup3() {
@@ -1162,16 +1257,18 @@ void Resource::preloadSssPcmList(const SssPreloadInfoData *preloadInfoData) {
 		}
 		_lvlFile->seek(offset * 2048, SEEK_SET);
 		fp = _lvlFile;
+	} else if (kPreloadSssPcm) {
+		return;
 	}
-	const uint8_t num = preloadInfoData->preload1Index;
-	const SssPreloadList *preloadList = &_sssPreload1Table[num];
-	const bool is16Bits = (_sssHdr.version == 12);
+	const SssPreloadList *preloadList = (_sssHdr.version == 6) ? &preloadInfoData->preload1Data_V6 : &_sssPreload1Table[preloadInfoData->preload1Index];
 	for (int i = 0; i < preloadList->count; ++i) {
-		const int num = is16Bits ? READ_LE_UINT16(preloadList->ptr + i * 2) : preloadList->ptr[i];
-		if (!_sssPcmTable[num].ptr) {
-			loadSssPcm(fp, &_sssPcmTable[num]);
-		} else if (_isPsx) {
-			fp->seek(_sssPcmTable[num].strideCount * 512, SEEK_CUR);
+		const int num = (preloadList->ptrSize == 2) ? READ_LE_UINT16(preloadList->ptr + i * 2) : preloadList->ptr[i];
+		if (_sssPcmTable[num].pcmSize != 0) {
+			if (!_sssPcmTable[num].ptr) {
+				loadSssPcm(fp, &_sssPcmTable[num]);
+			} else if (_isPsx) {
+				fp->seek(_sssPcmTable[num].strideCount * 512, SEEK_CUR);
+			}
 		}
 	}
 }
@@ -1902,7 +1999,7 @@ static void persistSetupCfg(FILE *fp, T *config) {
 		}
 		persistUint8(fp, config->players[i].stereo);
 		persistUint8(fp, config->players[i].volume);
-		persistUint8(fp, config->players[i].currentLevel);
+		persistUint8(fp, config->players[i].lastLevelNum);
 	}
 	persistUint8(fp, config->unkD0);
 	persistUint8(fp, config->currentPlayer);
@@ -1916,6 +2013,40 @@ static void persistSetupCfg(FILE *fp, T *config) {
 			warning("Invalid checksum 0x%x (0x%x) for 'setup.cfg'", config->checksum, checksum);
 		}
 	}
+}
+
+static const uint32_t _demTag = 0x31434552; // 'REC1'
+
+bool Resource::loadHodDem() {
+	bool ret = false;
+	File f;
+	if (openDat(_fs, _hodDem, &f)) {
+		const uint32_t tag = f.readUint32();
+		if (tag == _demTag) {
+			f.skipUint32();
+			_dem.randSeed = f.readUint32();
+			_dem.keyMaskLen = f.readUint32();
+			_dem.level = f.readByte();
+			_dem.checkpoint = f.readByte();
+			_dem.difficulty = f.readByte();
+			_dem.randRounds = f.readByte();
+			f.skipUint32();
+			f.skipUint32();
+			_dem.actionKeyMask = (uint8_t *)malloc(_dem.keyMaskLen);
+			f.read(_dem.actionKeyMask, _dem.keyMaskLen);
+			_dem.directionKeyMask = (uint8_t *)malloc(_dem.keyMaskLen);
+			f.read(_dem.directionKeyMask, _dem.keyMaskLen);
+			ret = true;
+		}
+		closeDat(_fs, &f);
+	}
+	return ret;
+}
+
+void Resource::unloadHodDem() {
+	free(_dem.actionKeyMask);
+	free(_dem.directionKeyMask);
+	memset(&_dem, 0, sizeof(_dem));
 }
 
 bool Resource::writeSetupCfg(const SetupConfig *config) {

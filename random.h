@@ -16,8 +16,7 @@ struct Random {
 
 	void setSeed();
 	void initMstTable();
-	void initTable();
-	void init();
+	void initTable(int rounds = 1);
 	uint32_t update();
 	uint8_t getNextNumber();
 	void resetMst(uint8_t *p);

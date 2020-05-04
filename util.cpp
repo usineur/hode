@@ -7,8 +7,10 @@
 #define LOG_TAG "HodJni"
 #include <android/log.h>
 #endif
+#include <stdio.h>
 #include <stdarg.h>
-#include "util.h"
+extern void System_printLog(FILE *, const char *s);
+extern void System_fatalError(const char *s);
 
 int g_debugMask;
 
@@ -24,6 +26,9 @@ void debug(int mask, const char *msg, ...) {
 #ifdef __ANDROID__
 		__android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s", buf);
 #endif
+#ifdef PSP
+		System_printLog(stdout, buf);
+#endif
 	}
 }
 
@@ -37,7 +42,10 @@ void error(const char *msg, ...) {
 #ifdef __ANDROID__
 	__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", buf);
 #endif
-	exit(-1);
+#ifdef PSP
+	System_printLog(stderr, buf);
+#endif
+	System_fatalError(buf);
 }
 
 void warning(const char *msg, ...) {
@@ -50,5 +58,7 @@ void warning(const char *msg, ...) {
 #ifdef __ANDROID__
 	__android_log_print(ANDROID_LOG_WARN, LOG_TAG, "%s", buf);
 #endif
+#ifdef PSP
+	System_printLog(stderr, buf);
+#endif
 }
-

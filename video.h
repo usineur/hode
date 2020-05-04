@@ -20,6 +20,7 @@ enum {
 
 struct Video {
 	enum {
+		CLEAR_COLOR = 0xC4,
 		W = 256,
 		H = 192
 	};
@@ -28,8 +29,7 @@ struct Video {
 
 	uint8_t _palette[256 * 3];
 	uint16_t _displayPaletteBuffer[256 * 3];
-	bool _paletteNeedRefresh;
-	bool _refreshPalette;
+	bool _paletteChanged;
 	bool _displayShadowLayer;
 	uint8_t *_shadowLayer;
 	uint8_t *_frontLayer;
@@ -39,21 +39,13 @@ struct Video {
 	uint8_t *_shadowScreenMaskBuffer;
 	uint8_t *_transformShadowBuffer;
 	uint8_t _transformShadowLayerDelta;
-	uint8_t _fillColor;
 	uint8_t _shadowColorLut[256];
 	const uint8_t *_font;
 
 	struct {
 		int x1, y1;
 		int x2, y2;
-		int pitch;
-		uint8_t color;
 	} _drawLine;
-
-	struct {
-		int pitch;
-		int x, y, w, h;
-	} _spr;
 
 	MdecOutput _mdec;
 
@@ -62,17 +54,18 @@ struct Video {
 
 	void init(bool mdec);
 
-	void refreshGamePalette(const uint16_t *pal);
+	void updateGamePalette(const uint16_t *pal);
 	void updateGameDisplay(uint8_t *buf);
-	void updateYuvDisplay();
+	void updateYuvDisplay(MdecOutput *mdec);
+	void copyYuvBackBuffer();
 	void updateScreen();
-	void fillBackBuffer();
+	void clearBackBuffer();
 	void clearPalette();
 	static void decodeRLE(const uint8_t *src, uint8_t *dst, int size);
 	void decodeSPR(const uint8_t *src, uint8_t *dst, int x, int y, uint8_t flags, uint16_t spr_w, uint16_t spr_h);
 	int computeLineOutCode(int x, int y);
 	bool clipLineCoords(int &x1, int &y1, int &x2, int &y2);
-	void drawLine(int x1, int y1, int x2, int y2);
+	void drawLine(int x1, int y1, int x2, int y2, uint8_t color);
 	void applyShadowColors(int x, int y, int src_w, int src_h, int dst_pitch, int src_pitch, uint8_t *dst1, uint8_t *dst2, uint8_t *src1, uint8_t *src2);
 	void buildShadowColorLookupTable(const uint8_t *src, uint8_t *dst);
 

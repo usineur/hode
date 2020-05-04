@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#if defined(_WIN32) || defined(__SWITCH__) || defined(__vita__)
+#if defined(_WIN32) || defined(PSP) || defined(__SWITCH__) || defined(__vita__)
 #define le16toh(x) x
 #define le32toh(x) x
 #define htole16(x) x
@@ -27,8 +27,17 @@ static const bool kByteSwapData = false; // no byteswap needed on little endian
 #include <machine/endian.h>
 static const bool kByteSwapData = (BYTE_ORDER == BIG_ENDIAN);
 #else
+#if defined(WII) // big endian
+#include <sys/types.h>
+#define le16toh(x) __bswap16(x)
+#define le32toh(x) __bswap32(x)
+#define htole16(x) __bswap16(x)
+#define htole32(x) __bswap32(x)
+static const bool kByteSwapData = true;
+#else
 #include <endian.h>
 static const bool kByteSwapData = (__BYTE_ORDER == __BIG_ENDIAN);
+#endif
 #endif
 
 #define ARRAYSIZE(a) (sizeof(a)/sizeof(a[0]))
@@ -99,9 +108,14 @@ inline void SWAP(T &a, T &b) {
 	T tmp = a; a = b; b = tmp;
 }
 
-inline int merge_bits(int dbit, int sbit, int mask) {
-	return ((sbit ^ dbit) & mask) ^ dbit;
-//	return (dbit & ~mask) | (sbit & mask);
+inline uint32_t merge_bits(uint32_t dst, uint32_t src, uint32_t mask) {
+//	return (dst & ~mask) | (src & mask);
+	return ((src ^ dst) & mask) ^ dst;
+}
+
+inline bool compare_bits(uint32_t a, uint32_t b, uint32_t mask) {
+//	return (a & mask) == (b & mask);
+	return ((a ^ b) & mask) == 0;
 }
 
 inline bool rect_contains(int left, int top, int right, int bottom, int x, int y) {

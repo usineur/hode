@@ -25,6 +25,7 @@ Game::Game(const char *dataPath, const char *savePath, uint32_t cheats)
 	_rnd.setSeed();
 	_video = new Video();
 	_cheats = cheats;
+	_playDemo = false;
 
 	_frameMs = kFrameTimeStamp;
 	_difficulty = 1;
@@ -144,7 +145,7 @@ void Game::fadeScreenPalette() {
 		}
 		_video->_displayPaletteBuffer[i] = color;
 	}
-	_video->_paletteNeedRefresh = true;
+	_video->_paletteChanged = true;
 }
 
 void Game::shakeScreen() {
@@ -196,7 +197,7 @@ void Game::transformShadowLayer(int delta) {
 				const int offset = x + *src++;
 				*dst++ = _video->_frontLayer[y * Video::W + offset];
 			}
-			memset(dst, 0xC4, 6);
+			memset(dst, Video::CLEAR_COLOR, 6);
 			dst += 6;
 			src += 6;
 		} else {
@@ -244,7 +245,7 @@ void Game::unloadTransformLayerData() {
 void Game::decodeShadowScreenMask(LvlBackgroundData *lvl) {
 	uint8_t *dst = _video->_shadowScreenMaskBuffer;
 	for (int i = lvl->currentShadowId; i < lvl->shadowCount; ++i) {
-		uint8_t *src = lvl->backgroundMaskTable[i];
+		const uint8_t *src = lvl->backgroundMaskTable[i];
 		if (src) {
 			const int decodedSize = decodeLZW(src + 2, dst);
 
@@ -264,12 +265,12 @@ void Game::decodeShadowScreenMask(LvlBackgroundData *lvl) {
 			debug(kDebug_GAME, "shadow screen mask #%d pos %d,%d dim %d,%d size %d", i, x, y, w, h, decodedSize);
 
 			const int size = w * h;
-			src = _shadowScreenMasksTable[i].projectionDataPtr + 2;
+			uint8_t *p = _shadowScreenMasksTable[i].projectionDataPtr + 2;
 			for (int j = 1; j < size; ++j) {
-				const int16_t offset = (int16_t)READ_LE_UINT16(src - 2) + (int16_t)READ_LE_UINT16(src);
-				// fprintf(stdout, "shadow #%d offset #%d 0x%x 0x%x\n", i, j, READ_LE_UINT16(src), offset);
-				WRITE_LE_UINT16(src, offset);
-				src += 2;
+				const int16_t offset = (int16_t)READ_LE_UINT16(p - 2) + (int16_t)READ_LE_UINT16(p);
+				// fprintf(stdout, "shadow #%d offset #%d 0x%x 0x%x\n", i, j, READ_LE_UINT16(p), offset);
+				WRITE_LE_UINT16(p, offset);
+				p += 2;
 			}
 
 			const int shadowPaletteSize = decodedSize - 20 - w * h * sizeof(uint16_t);
@@ -327,7 +328,14 @@ void Game::setupBackgroundBitmap() {
 	for (int i = 0; i < 256 * 3; ++i) {
 		_video->_displayPaletteBuffer[i] = pal[i] << 8;
 	}
-	_video->_paletteNeedRefresh = true;
+	_video->_paletteChanged = true;
+}
+
+void Game::addToSpriteList(Sprite *spr) {
+	_spritesNextPtr = spr->nextPtr;
+	const int index = spr->num & 0x1F;
+	spr->nextPtr = _typeSpritesList[index];
+	_typeSpritesList[index] = spr;
 }
 
 void Game::addToSpriteList(LvlObject *ptr) {
@@ -370,10 +378,7 @@ void Game::addToSpriteList(LvlObject *ptr) {
 			spr->w = ptr->width;
 			spr->h = ptr->height;
 			spr->bitmapBits = ptr->bitmapBits;
-			_spritesNextPtr = spr->nextPtr;
-			index = (ptr->flags2 & 31);
-			spr->nextPtr = _typeSpritesList[index];
-			_typeSpritesList[index] = spr;
+			addToSpriteList(spr);
 		}
 	}
 }
@@ -463,15 +468,6 @@ void Game::setupScreenMask(uint8_t num) {
 		for (int i = 0; i < 24; ++i) {
 			memcpy(p, _screenTempMaskBuffer + i * 32, 32);
 			p += 512;
-		}
-		if (0) {
-			fprintf(stdout, "screen %d mask %d\n", num, mask);
-			for (int y = 0; y < 24; ++y) {
-				for (int x = 0; x < 32; ++x) {
-					fprintf(stdout, "%02d ", _screenTempMaskBuffer[y * 32 + x]);
-				}
-				fputc('\n', stdout);
-			}
 		}
 	}
 	if (_res->_currentScreenResourceNum == num) {
@@ -930,23 +926,6 @@ void Game::preloadLevelScreenData(uint8_t num, uint8_t prev) {
 			}
 		}
 	}
-	if (0) {
-		const uint8_t leftScreen = _res->_screensGrid[num][kPosLeftScreen];
-		if (leftScreen != kNoScreen && !_res->isLvlBackgroundDataLoaded(leftScreen)) {
-			_res->loadLvlScreenBackgroundData(leftScreen);
-		}
-		const uint8_t rightScreen = _res->_screensGrid[num][kPosRightScreen];
-		if (rightScreen != kNoScreen && !_res->isLvlBackgroundDataLoaded(rightScreen)) {
-			_res->loadLvlScreenBackgroundData(rightScreen);
-		}
-		for (unsigned int i = 0; i < kMaxScreens; ++i) {
-			if (_res->_resLevelData0x2B88SizeTable[i] != 0) {
-				if (i != num && i != leftScreen && i != rightScreen) {
-					_res->unloadLvlScreenBackgroundData(i);
-				}
-			}
-		}
-	}
 }
 
 void Game::setLvlObjectPosRelativeToObject(LvlObject *ptr1, int num1, LvlObject *ptr2, int num2) {
@@ -1294,7 +1273,7 @@ void Game::setupAndyLvlObject() {
 	}
 }
 
-void Game::updateScreenHelper(int num) {
+void Game::setupScreenLvlObjects(int num) {
 	_res->_screensState[num].s2 = 1;
 	for (LvlObject *ptr = _screenLvlObjectsList[num]; ptr; ptr = ptr->nextPtr) {
 		switch (ptr->type) {
@@ -1353,7 +1332,7 @@ void Game::updateScreenHelper(int num) {
 					ptr->callbackFuncPtr = &Game::objectUpdate_rock_case4;
 					break;
 				default:
-					warning("updateScreenHelper unimplemented for level %d, state %d", _currentLevel, ptr->objectUpdateType);
+					warning("setupScreenLvlObjects unimplemented for level %d, state %d", _currentLevel, ptr->objectUpdateType);
 					break;
 				}
 			} else {
@@ -1366,7 +1345,7 @@ void Game::updateScreenHelper(int num) {
 					ptr->callbackFuncPtr = &Game::objectUpdate_rock_case3;
 					break;
 				default:
-					warning("updateScreenHelper unimplemented for level %d, state %d", _currentLevel, ptr->objectUpdateType);
+					warning("setupScreenLvlObjects unimplemented for level %d, state %d", _currentLevel, ptr->objectUpdateType);
 					break;
 				}
 			}
@@ -1386,7 +1365,7 @@ void Game::resetDisplay() {
 	_snd_masterVolume = kDefaultSoundVolume; // _plyConfigTable[_plyConfigNumber].soundVolume;
 }
 
-void Game::updateScreen(uint8_t num) {
+void Game::setupScreen(uint8_t num) {
 	uint8_t i, prev;
 
 	if (num == kNoScreen) {
@@ -1394,10 +1373,10 @@ void Game::updateScreen(uint8_t num) {
 	}
 	prev = _res->_currentScreenResourceNum;
 	_res->_currentScreenResourceNum = num;
-	updateScreenHelper(num);
+	setupScreenLvlObjects(num);
 	callLevel_preScreenUpdate(num);
 	if (_res->_screensState[num].s0 >= _res->_screensState[num].s1) {
-		--_res->_screensState[num].s1;
+		_res->_screensState[num].s0 = _res->_screensState[num].s1 - 1;
 	}
 	callLevel_postScreenUpdate(num);
 	i = _res->_screensGrid[num][kPosTopScreen];
@@ -1408,7 +1387,7 @@ void Game::updateScreen(uint8_t num) {
 	}
 	i = _res->_screensGrid[num][kPosRightScreen];
 	if (i != kNoScreen && _res->_resLevelData0x2B88SizeTable[i] != 0 && prev != i) {
-		updateScreenHelper(i);
+		setupScreenLvlObjects(i);
 		callLevel_preScreenUpdate(i);
 		setupScreenMask(i);
 		callLevel_postScreenUpdate(i);
@@ -1421,7 +1400,7 @@ void Game::updateScreen(uint8_t num) {
 	}
 	i = _res->_screensGrid[num][kPosLeftScreen];
 	if (i != kNoScreen && _res->_resLevelData0x2B88SizeTable[i] != 0 && prev != i) {
-		updateScreenHelper(i);
+		setupScreenLvlObjects(i);
 		callLevel_preScreenUpdate(i);
 		setupScreenMask(i);
 		callLevel_postScreenUpdate(i);
@@ -1472,7 +1451,7 @@ void Game::restartLevel() {
 	if (_andyObject->screenNum != screenNum) {
 		preloadLevelScreenData(_andyObject->screenNum, kNoScreen);
 	}
-	updateScreen(_andyObject->screenNum);
+	setupScreen(_andyObject->screenNum);
 }
 
 void Game::playAndyFallingCutscene(int type) {
@@ -1991,18 +1970,16 @@ void Game::drawPlasmaCannon() {
 	int y1 = _plasmaCannonPosY[index];
 	index += 4;
 	do {
-		_video->_drawLine.color = 0xA9;
 		int x2 = _plasmaCannonXPointsTable1[index];
 		int y2 = _plasmaCannonYPointsTable1[index];
 		if (_plasmaCannonDirection == 1) {
-			_video->drawLine(x1 - 1, y1, x2 - 1, y2);
-			_video->drawLine(x1 + 1, y1, x2 + 1, y2);
+			_video->drawLine(x1 - 1, y1, x2 - 1, y2, 0xA9);
+			_video->drawLine(x1 + 1, y1, x2 + 1, y2, 0xA9);
 		} else {
-			_video->drawLine(x1, y1 - 1, x2, y2 - 1);
-			_video->drawLine(x1, y1 + 1, x2, y2 + 1);
+			_video->drawLine(x1, y1 - 1, x2, y2 - 1, 0xA9);
+			_video->drawLine(x1, y1 + 1, x2, y2 + 1, 0xA9);
 		}
-		_video->_drawLine.color = 0xA6;
-		_video->drawLine(x1, y1, x2, y2);
+		_video->drawLine(x1, y1, x2, y2, 0xA6);
 		x1 = x2;
 		y1 = y2;
 		index += 4;
@@ -2018,9 +1995,17 @@ void Game::drawScreen() {
 
 	// redraw background animation sprites
 	LvlBackgroundData *dat = &_res->_resLvlScreenBackgroundDataTable[_res->_currentScreenResourceNum];
-	for (Sprite *spr = _typeSpritesList[0]; spr; spr = spr->nextPtr) {
-		if ((spr->num & 0x1F) == 0) {
-			_video->decodeSPR(spr->bitmapBits, _video->_backgroundLayer, spr->xPos, spr->yPos, 0, spr->w, spr->h);
+	if (_res->_isPsx) {
+		for (Sprite *spr = _typeSpritesList[0]; spr; spr = spr->nextPtr) {
+			assert((spr->num & 0x1F) == 0);
+			assert(spr->w == 0xFFFF && spr->h == 0xFFFF);
+			_video->decodeBackgroundOverlayPsx(spr->bitmapBits);
+		}
+	} else {
+		for (Sprite *spr = _typeSpritesList[0]; spr; spr = spr->nextPtr) {
+			if ((spr->num & 0x1F) == 0) {
+				_video->decodeSPR(spr->bitmapBits, _video->_backgroundLayer, spr->xPos, spr->yPos, 0, spr->w, spr->h);
+			}
 		}
 	}
 	memset(_video->_shadowLayer, 0, Video::W * Video::H + 1);
@@ -2090,11 +2075,14 @@ void Game::drawScreen() {
 	}
 }
 
-void Game::mainLoop(int &level, int &checkpoint, bool levelChanged) {
-	if (_loadingScreenEnabled) {
-		displayLoadingScreen();
-	}
-	if (_resumeGame) {
+void Game::mainLoop(int level, int checkpoint, bool levelChanged) {
+	if (_playDemo && _res->loadHodDem()) {
+		_rnd._rndSeed = _res->_dem.randSeed;
+		level = _res->_dem.level;
+		checkpoint = _res->_dem.checkpoint;
+		_difficulty = _res->_dem.difficulty;
+		_res->_demOffset = 0;
+	} else if (_resumeGame) {
 		const int num = _setupConfig.currentPlayer;
 		level = _setupConfig.players[num].levelNum;
 		if (level > kLvl_dark) {
@@ -2120,7 +2108,8 @@ void Game::mainLoop(int &level, int &checkpoint, bool levelChanged) {
 	clearSoundObjects();
 	_mix._lock(0);
 	_mstAndyCurrentScreenNum = -1;
-	_rnd.initTable();
+	const int rounds = _playDemo ? _res->_dem.randRounds : ((g_system->getTimeStamp() & 15) + 1);
+	_rnd.initTable(rounds);
 	const int screenNum = _level->getCheckpointData(checkpoint)->screenNum;
 	if (_mstDisabled) {
 		_specialAnimMask = 0;
@@ -2257,22 +2246,21 @@ LvlObject *Game::updateAnimatedLvlObjectType0(LvlObject *ptr) {
 			playSound(ptr->currentSound, ptr, 0, 3);
 			ptr->currentSound = 0xFFFF;
 		}
-		if (isPsx) {
-			_video->decodeBackgroundOverlayPsx(data);
-		} else {
-			Sprite *spr = _spritesNextPtr;
-			if (spr && READ_LE_UINT16(data + 2) > 8) {
+		Sprite *spr = _spritesNextPtr;
+		if (spr && READ_LE_UINT16(data + 2) > 8) {
+			if (isPsx) {
+				assert((ptr->flags2 & 0x1F) == 0);
+				spr->bitmapBits = data;
+				spr->w = spr->h = 0xFFFF;
+			} else {
 				spr->xPos = data[0];
 				spr->yPos = data[1];
 				spr->w = READ_LE_UINT16(data + 4);
 				spr->h = READ_LE_UINT16(data + 6);
 				spr->bitmapBits = data + 8;
-				spr->num = ptr->flags2;
-				const int index = spr->num & 0x1F;
-				_spritesNextPtr = spr->nextPtr;
-				spr->nextPtr = _typeSpritesList[index];
-				_typeSpritesList[index] = spr;
 			}
+			spr->num = ptr->flags2;
+			addToSpriteList(spr);
 		}
 	}
 	int16_t soundNum = -1;
@@ -2324,22 +2312,21 @@ LvlObject *Game::updateAnimatedLvlObjectType0(LvlObject *ptr) {
 		}
 		data = vg->currentSpriteData + soundDataLen;
 		if (_res->_currentScreenResourceNum == ptr->screenNum) {
-			if (isPsx) {
-				_video->decodeBackgroundOverlayPsx(data);
-			} else {
-				Sprite *spr = _spritesNextPtr;
-				if (spr && READ_LE_UINT16(data + 2) > 8) {
+			Sprite *spr = _spritesNextPtr;
+			if (spr && READ_LE_UINT16(data + 2) > 8) {
+				if (isPsx) {
+					assert((ptr->flags2 & 0x1F) == 0);
+					spr->bitmapBits = data;
+					spr->w = spr->h = 0xFFFF;
+				} else {
 					spr->w = READ_LE_UINT16(data + 4);
 					spr->h = READ_LE_UINT16(data + 6);
 					spr->bitmapBits = data + 8;
 					spr->xPos = data[0];
 					spr->yPos = data[1];
-					_spritesNextPtr = spr->nextPtr;
-					spr->num = ptr->flags2;
-					const int index = spr->num & 0x1F;
-					spr->nextPtr = _typeSpritesList[index];
-					_typeSpritesList[index] = spr;
 				}
+				spr->num = ptr->flags2;
+				addToSpriteList(spr);
 			}
 		}
 		ptr->objectUpdateType = 1;
@@ -2387,7 +2374,7 @@ LvlObject *Game::updateAnimatedLvlObjectType1(LvlObject *ptr) {
 				playSound(ptr->currentSound, 0, 0, 3);
 				ptr->currentSound = 0xFFFF;
 			}
-			uint8_t *data = (uint8_t *)getLvlObjectDataPtr(ptr, kObjectDataTypeLvlBackgroundSound);
+			const uint8_t *data = (const uint8_t *)getLvlObjectDataPtr(ptr, kObjectDataTypeLvlBackgroundSound);
 			Sprite *spr = _spritesNextPtr;
 			if (spr && READ_LE_UINT16(data + 2) > 8) {
 				spr->w = READ_LE_UINT16(data + 4);
@@ -2395,11 +2382,8 @@ LvlObject *Game::updateAnimatedLvlObjectType1(LvlObject *ptr) {
 				spr->bitmapBits = data + 8;
 				spr->xPos = data[0];
 				spr->yPos = data[1];
-				_spritesNextPtr = spr->nextPtr;
 				spr->num = ptr->flags2;
-				const int index = spr->num & 0x1F;
-				spr->nextPtr = _typeSpritesList[index];
-				_typeSpritesList[index] = spr;
+				addToSpriteList(spr);
 			}
 		}
 	}
@@ -2435,27 +2419,24 @@ LvlObject *Game::updateAnimatedLvlObjectType2(LvlObject *ptr) {
 		return o;
 	}
 	if (_currentScreen == ptr->screenNum) {
-		const uint8_t *vf = ptr->bitmapBits;
+		const uint8_t *bitmap = ptr->bitmapBits;
 
 		LvlObjectData *dat = ptr->levelData0x2988;
 		LvlAnimHeader *ah = (LvlAnimHeader *)(dat->animsInfoData + kLvlAnimHdrOffset) + ptr->anim;
 		LvlAnimSeqHeader *ash = (LvlAnimSeqHeader *)(dat->animsInfoData + ah->seqOffset) + ptr->frame;
 
-		int vd = (ptr->flags1 >> 4) & 0xFF;
-		int vc = (ash->flags1 >> 4) & 0xFF;
-		vc = (((vc ^ vd) & 3) << 14) | ptr->flags2;
+		const int f1 = (ptr->flags1 >> 4) & 3;
+		const int f2 = (ash->flags1 >> 4) & 3;
+		const int num = ((f1 ^ f2) << 14) | ptr->flags2;
 		Sprite *spr = _spritesNextPtr;
-		if (spr && vf) {
+		if (spr && bitmap) {
 			spr->yPos = ptr->yPos;
 			spr->xPos = ptr->xPos;
 			spr->w = ptr->width;
 			spr->h = ptr->height;
-			spr->bitmapBits = vf;
-			spr->num = vc;
-			const int index = spr->num & 0x1F;
-			_spritesNextPtr = spr->nextPtr;
-			spr->nextPtr = _typeSpritesList[index];
-			_typeSpritesList[index] = spr;
+			spr->bitmapBits = bitmap;
+			spr->num = num;
+			addToSpriteList(spr);
 		}
 	}
 	if (ptr->spriteNum <= 15 || ptr->dataPtr == 0) {
@@ -2702,12 +2683,18 @@ void Game::levelMainLoop() {
 	_directionKeyMask = 0;
 	_actionKeyMask = 0;
 	updateInput();
-	_andyObject->directionKeyMask = _directionKeyMask;
-	_andyObject->actionKeyMask = _actionKeyMask;
-	_video->fillBackBuffer();
+	if (_playDemo && _res->_demOffset < _res->_dem.keyMaskLen) {
+		_andyObject->actionKeyMask = _res->_dem.actionKeyMask[_res->_demOffset];
+		_andyObject->directionKeyMask = _res->_dem.directionKeyMask[_res->_demOffset];
+		++_res->_demOffset;
+	} else {
+		_andyObject->directionKeyMask = _directionKeyMask;
+		_andyObject->actionKeyMask = _actionKeyMask;
+	}
+	_video->clearBackBuffer();
 	if (_andyObject->screenNum != _res->_currentScreenResourceNum) {
 		preloadLevelScreenData(_andyObject->screenNum, _res->_currentScreenResourceNum);
-		updateScreen(_andyObject->screenNum);
+		setupScreen(_andyObject->screenNum);
 	} else if (_fadePalette && _levelRestartCounter == 0) {
 		restartLevel();
 	} else {
@@ -2743,9 +2730,9 @@ void Game::levelMainLoop() {
 	if (_res->_sssHdr.infosDataCount != 0) {
 		// sound thread signaling
 	}
-	if (_video->_paletteNeedRefresh) {
-		_video->_paletteNeedRefresh = false;
-		_video->refreshGamePalette(_video->_displayPaletteBuffer);
+	if (_video->_paletteChanged) {
+		_video->_paletteChanged = false;
+		_video->updateGamePalette(_video->_displayPaletteBuffer);
 		g_system->copyRectWidescreen(Video::W, Video::H, _video->_backgroundLayer, _video->_palette);
 	}
 	drawScreen();
@@ -2838,7 +2825,7 @@ void Game::callLevel_terminate() {
 }
 
 void Game::displayLoadingScreen() {
-	if (_res->loadDatLoadingImage(_video->_frontLayer, _video->_palette)) {
+	if (_loadingScreenEnabled && _res->loadDatLoadingImage(_video->_frontLayer, _video->_palette)) {
 		g_system->setPalette(_video->_palette, 256, 6);
 		g_system->copyRect(0, 0, Video::W, Video::H, _video->_frontLayer, 256);
 		g_system->updateScreen(false);
@@ -2881,7 +2868,7 @@ int Game::displayHintScreen(int num, int pause) {
 			}
 			g_system->sleep(30);
 		} while (!g_system->inp.quit && !g_system->inp.keyReleased(SYS_INP_JUMP));
-		_video->_paletteNeedRefresh = true;
+		_video->_paletteChanged = true;
 	}
 	unmuteSound();
 	return confirmQuit && quit == kQuitYes;
@@ -4754,7 +4741,7 @@ void Game::updateWormHoleSprites() {
 			int xOffset = 0;
 			for (int j = 0; j < 11; ++j) {
 				uint8_t _al = (*flags >> (j * 2)) & 3;
-				if (_al != 0 && _spritesNextPtr != 0) {
+				if (_al != 0 && _spritesNextPtr) {
 					const int xPos = spr->xPos + xOffset + 12;
 					const int yPos = spr->yPos + yOffset + 16;
 					if (rect_contains(spr->rect1_x1, spr->rect1_y1, spr->rect1_x2, spr->rect1_y2, xPos, yPos)) {
@@ -4776,10 +4763,7 @@ void Game::updateWormHoleSprites() {
 						spr->h = tmp.height;
 						spr->bitmapBits = tmp.bitmapBits;
 						spr->num = tmp.flags2 & 0x3FFF;
-						const int index = spr->num & 0x1F;
-						_spritesNextPtr = spr->nextPtr;
-						spr->nextPtr = _typeSpritesList[index];
-						_typeSpritesList[index] = spr;
+						addToSpriteList(spr);
 					}
 				}
 				xOffset += 24;
@@ -4809,8 +4793,8 @@ void Game::saveSetupCfg() {
 	_setupConfig.players[num].cutscenesMask = _paf->_playedMask;
 	_setupConfig.players[num].difficulty = _difficulty;
 	_setupConfig.players[num].volume = _snd_masterVolume;
-	if (_currentLevel > _setupConfig.players[num].currentLevel) {
-		_setupConfig.players[num].currentLevel = _currentLevel;
+	if (_currentLevel > _setupConfig.players[num].lastLevelNum) {
+		_setupConfig.players[num].lastLevelNum = _currentLevel;
 	}
 	_res->writeSetupCfg(&_setupConfig);
 }
@@ -4823,8 +4807,57 @@ void Game::captureScreenshot() {
 	FILE *fp = _fs.openSaveFile(name, true);
 	if (fp) {
 		saveBMP(fp, _video->_frontLayer, _video->_palette, Video::W, Video::H);
-		fclose(fp);
+		_fs.closeFile(fp);
 	}
-
+	if (_cheats != 0) {
+		snprintf(name, sizeof(name), "screenshot-%03d-background.bmp", screenshot);
+		fp = _fs.openSaveFile(name, true);
+		if (fp) {
+			saveBMP(fp, _video->_backgroundLayer, _video->_palette, Video::W, Video::H);
+			_fs.closeFile(fp);
+		}
+		snprintf(name, sizeof(name), "screenshot-%03d-shadow.bmp", screenshot);
+		fp = _fs.openSaveFile(name, true);
+		if (fp) {
+			saveBMP(fp, _video->_shadowLayer, _video->_palette, Video::W, Video::H);
+			_fs.closeFile(fp);
+		}
+		snprintf(name, sizeof(name), "screenshot-%03d-palette.bmp", screenshot);
+		fp = _fs.openSaveFile(name, true);
+		if (fp) {
+			static const int kPaletteRectSize = 8;
+			uint8_t paletteBuffer[8 * 256 * 8];
+			for (int x = 0; x < 256; ++x) {
+				const int xOffset = x * kPaletteRectSize;
+				for (int y = 0; y < kPaletteRectSize; ++y) {
+					memset(paletteBuffer + xOffset + y * 256 * kPaletteRectSize, x, kPaletteRectSize);
+				}
+			}
+			saveBMP(fp, paletteBuffer, _video->_palette, 256 * kPaletteRectSize, kPaletteRectSize);
+			_fs.closeFile(fp);
+		}
+		snprintf(name, sizeof(name), "screenshot-%03d-postable.txt", screenshot);
+		fp = _fs.openSaveFile(name, true);
+		if (fp) {
+			for (int y = 0; y < 24; ++y) {
+				for (int x = 0; x < 32; ++x) {
+					fprintf(fp, "%02x ", _screenPosTable[4][y * 32 + x]);
+				}
+				fputc('\n', fp);
+			}
+			_fs.closeFile(fp);
+		}
+		snprintf(name, sizeof(name), "screenshot-%03d-mask.txt", screenshot);
+		fp = _fs.openSaveFile(name, true);
+		if (fp) {
+			for (int y = 0; y < 24; ++y) {
+				for (int x = 0; x < 32; ++x) {
+					fprintf(fp, "%02x ", _screenTempMaskBuffer[y * 32 + x]);
+				}
+				fputc('\n', fp);
+			}
+			_fs.closeFile(fp);
+		}
+	}
 	++screenshot;
 }

@@ -7,7 +7,13 @@
 #include "fileio.h"
 #include "util.h"
 
-static const bool kCheckSectorFileCrc = true;
+static const bool kCheckSectorFileCrc = false;
+
+#ifdef PSP
+static const bool kSeekAbsolutePosition = true;
+#else
+static const bool kSeekAbsolutePosition = false;
+#endif
 
 File::File()
 	: _fp(0) {
@@ -20,11 +26,15 @@ void File::setFp(FILE *fp) {
 	_fp = fp;
 }
 
-void File::seekAlign(int pos) {
+void File::seekAlign(uint32_t pos) {
 	fseek(_fp, pos, SEEK_SET);
 }
 
 void File::seek(int pos, int whence) {
+	if (kSeekAbsolutePosition && whence == SEEK_CUR) {
+		pos += ftell(_fp);
+		whence = SEEK_SET;
+	}
 	fseek(_fp, pos, whence);
 }
 
@@ -48,9 +58,6 @@ uint32_t File::readUint32() {
 	uint8_t buf[4];
 	read(buf, 4);
 	return READ_LE_UINT32(buf);
-}
-
-void File::flush() {
 }
 
 SectorFile::SectorFile() {
@@ -93,13 +100,14 @@ void SectorFile::refillBuffer(uint8_t *ptr) {
 	}
 }
 
-void SectorFile::seekAlign(int pos) {
+void SectorFile::seekAlign(uint32_t pos) {
 	pos += (pos / 2048) * 4;
-	const int alignPos = (pos / 2048) * 2048;
-	fseek(_fp, alignPos, SEEK_SET);
-	refillBuffer();
-	const int skipCount = pos - alignPos;
-	_bufPos += skipCount;
+	const long alignPos = pos & ~2047;
+	if (alignPos != (ftell(_fp) - 2048)) {
+		fseek(_fp, alignPos, SEEK_SET);
+		refillBuffer();
+	}
+	_bufPos = pos - alignPos;
 }
 
 void SectorFile::seek(int pos, int whence) {
@@ -147,10 +155,4 @@ int SectorFile::read(uint8_t *ptr, int size) {
 		_bufPos += size;
 	}
 	return 0;
-}
-
-void SectorFile::flush() {
-	const int currentPos = ftell(_fp);
-	assert((currentPos & 2047) == 0);
-	_bufPos = 2044;
 }
