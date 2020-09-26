@@ -25,10 +25,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
   ${SDL2_STATIC_LIBRARIES}
 )
 
-if(SWITCH_LIBNX)
-  set(CMAKE_C_FLAGS "-O2 -ffunction-sections -fdata-sections -march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE -ftls-model=local-exec")
-  set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
-  include_directories($ENV{DEVKITPRO}/libnx/include)
+if(NSWITCH)
   add_definitions(-D__SWITCH__)
   add_custom_target(${CMAKE_PROJECT_NAME}.nro
     DEPENDS ${CMAKE_PROJECT_NAME}
@@ -39,7 +36,7 @@ if(SWITCH_LIBNX)
     COMMAND nxlink -a $(SWITCHIP) ${CMAKE_PROJECT_NAME}.nro -s -p ${CMAKE_PROJECT_NAME}/${CMAKE_PROJECT_NAME}.nro
     DEPENDS ${CMAKE_PROJECT_NAME}.nro
   )
-endif(SWITCH_LIBNX)
+endif(NSWITCH)
 
 if(VITA)
   include("${VITASDK}/share/vita.cmake" REQUIRED)
