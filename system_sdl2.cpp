@@ -62,6 +62,7 @@ struct System_SDL2 : System {
 	virtual void setScaler(const char *name, int multiplier);
 	virtual void setGamma(float gamma);
 	virtual void setPalette(const uint8_t *pal, int n, int depth);
+	virtual void clearPalette();
 	virtual void copyRect(int x, int y, int w, int h, const uint8_t *buf, int pitch);
 	virtual void copyYuv(int w, int h, const uint8_t *y, int ypitch, const uint8_t *u, int upitch, const uint8_t *v, int vpitch);
 	virtual void fillRect(int x, int y, int w, int h, uint8_t color);
@@ -87,9 +88,22 @@ struct System_SDL2 : System {
 static System_SDL2 system_sdl2;
 System *const g_system = &system_sdl2;
 
+void System_printLog(FILE *fp, const char *s) {
+	if (fp == stderr) {
+		fprintf(stderr, "WARNING: %s\n", s);
+	} else {
+		fprintf(fp, "%s\n", s);
+	}
+}
+
 void System_fatalError(const char *s) {
+	fprintf(stderr, "ERROR: %s\n", s);
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Heart of Darkness", s, system_sdl2._window);
 	exit(-1);
+}
+
+bool System_hasCommandLine() {
+	return true;
 }
 
 System_SDL2::System_SDL2() :
@@ -122,11 +136,12 @@ void System_SDL2::init(const char *title, int w, int h, bool fullscreen, bool wi
 	}
 	memset(_offscreenLut, 0, offscreenSize);
 	prepareScaledGfx(title, fullscreen, widescreen, yuv);
+
+	SDL_GameControllerAddMappingsFromFile("gamecontrollerdb.txt");
 	_joystick = 0;
 	_controller = 0;
 	const int count = SDL_NumJoysticks();
 	if (count > 0) {
-		SDL_GameControllerAddMappingsFromFile("gamecontrollerdb.txt");
 		for (int i = 0; i < count; ++i) {
 			if (SDL_IsGameController(i)) {
 				_controller = SDL_GameControllerOpen(i);
@@ -326,6 +341,10 @@ void System_SDL2::setPalette(const uint8_t *pal, int n, int depth) {
 	if (_backgroundTexture) {
 		_pal[0] = 0;
 	}
+}
+
+void System_SDL2::clearPalette() {
+	memset(_pal, 0, sizeof(_pal));
 }
 
 void System_SDL2::copyRect(int x, int y, int w, int h, const uint8_t *buf, int pitch) {
@@ -772,16 +791,11 @@ void System_SDL2::updateKeys(PlayerInput *inp) {
 }
 
 void System_SDL2::prepareScaledGfx(const char *caption, bool fullscreen, bool widescreen, bool yuv) {
-	int flags = 0;
-	if (fullscreen) {
-		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-	} else {
-		flags |= SDL_WINDOW_RESIZABLE;
-	}
 	_texW = _screenW * _scalerMultiplier;
 	_texH = _screenH * _scalerMultiplier;
 	const int windowW = widescreen ? _texH * 16 / 9 : _texW;
 	const int windowH = _texH;
+	const int flags = fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_RESIZABLE;
 	_window = SDL_CreateWindow(caption, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowW, windowH, flags);
 	SDL_Surface *icon = SDL_LoadBMP(kIconBmp);
 	if (icon) {

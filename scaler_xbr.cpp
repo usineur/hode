@@ -34,7 +34,6 @@ static void scale_xbr(int factor, uint32_t *dst, int dstPitch, const uint32_t *s
 }
 
 const Scaler scaler_xbr = {
-	SCALER_TAG,
 	"xbr",
 	2, 4,
 	scale_xbr

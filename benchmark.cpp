@@ -5,7 +5,7 @@
 #include "util.h"
 #include "video.h"
 
-uint32_t Game::benchmarkLoop(const uint8_t *p, int count) {
+static uint32_t benchmarkLoop(const uint8_t *p, int count) {
 	uint32_t accum = 0;
 	count >>= 2; // sizeof(uint32_t)
 	if (count > 0) {

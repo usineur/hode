@@ -16,10 +16,12 @@ enum {
 enum {
 	kNone = 0xFFFFFFFF, // (uint32_t)-1
 	kNoScreen = 0xFF, // (uint8_t)-1
+	kFrameDuration = 80, // original engine frame duration is 80ms (12.5hz)
 	kLvlAnimHdrOffset = 0x2C,
 	kMaxScreens = 40,
 	kMaxSpriteTypes = 32,
-	kMonsterInfoDataSize = 948 // (32 * 28 + 52)
+	kMonsterInfoSize = 28,
+	kMonsterInfoDataSize = 948 // (32 * kMonsterInfoSize + 52)
 };
 
 enum {
@@ -80,23 +82,23 @@ struct Point16_t {
 
 struct AnimBackgroundData {
 	const uint8_t *currentSpriteData; // 0
-	uint8_t *nextSpriteData; // 4
-	uint8_t *otherSpriteData; // 8
+	const uint8_t *nextSpriteData; // 4
+	const uint8_t *otherSpriteData; // 8
 	uint16_t framesCount; // 12
 	uint16_t currentFrame; // 14
 };
 
 struct LvlAnimSeqHeader {
 	uint16_t firstFrame;
-	uint16_t unk2;
+	uint16_t unk2; // unused
 	int8_t dx; // 4
 	int8_t dy; // 5
 	uint8_t count; // 6
-	uint8_t unk7; // 7
+	uint8_t unk7; // unused
 	uint16_t sound;
 	uint16_t flags0;
 	uint16_t flags1;
-	uint16_t unkE;
+	uint16_t unkE; // unused
 	uint32_t offset; // 0x10, LvlAnimSeqFrameHeader
 } PACKED; // sizeof == 20
 
@@ -104,9 +106,9 @@ struct LvlAnimSeqFrameHeader {
 	uint16_t move; // 0
 	uint16_t anim; // 2
 	uint8_t frame; // 4
-	uint8_t unk5; // 5
-	int8_t unk6;
-	int8_t unk7;
+	uint8_t flags; // 5
+	int8_t xOffset; // 6
+	int8_t yOffset; // 7
 } PACKED; // sizeof == 8
 
 struct LvlAnimHeader {
@@ -195,10 +197,10 @@ struct SssObject {
 	uint32_t flags0; // 0xC
 	uint32_t flags1; // 0x10
 	int32_t panning; // 0x14 panning default:64
-	int32_t volume; // 0x18 volume (db) default:128
+	int32_t volume; // 0x18 volume default:128
 	int panL; // 0x1C
 	int panR; // 0x20
-	int panType; // 0x24 : 0: silent, 1:fullRight 2:fullLeft 3:both
+	int panType; // 0x24 : 0: silent, 1:right 2:left 3:center 4:balance
 	const int16_t *currentPcmPtr; // 0x28
 	int32_t pcmFramesCount; // 0x2C
 	SssObject *prevPtr; // 0x30
@@ -217,9 +219,9 @@ struct SssObject {
 	int32_t panningModulateCurrent; // 0x64
 	int32_t panningModulateDelta; // 0x68
 	int32_t currentPcmFrame; // 0x6C
-	int *panningPtr; // 0x70
+	int *panningPtr; // 0x70 if != 0, panning is relative to the object position
 	LvlObject *lvlObject; // 0x74
-	int32_t nextSoundBank; // 0x78 indexes
+	int32_t nextSoundBank; // 0x78
 	int32_t nextSoundSample; // 0x7C
 	SssFilter *filter;
 };
@@ -319,22 +321,9 @@ struct AndyShootData {
 struct AndyMoveData {
 	int32_t xPos;
 	int32_t yPos;
-	uint16_t anim; // 8
-	uint16_t unkA;
-	uint16_t unkC;
-	uint16_t unkE;
-	uint8_t frame; // 0x10
-	uint8_t unk11;
-	uint16_t flags0;
+	uint16_t flags0; // 0x12
 	uint16_t flags1;
-	uint16_t unk16;
-	uint16_t unk18;
-	uint16_t unk1A;
-	const uint8_t *unk1C;
-	const uint8_t *framesData;
-	const uint8_t *unk24;
-	const uint8_t *unk28;
-}; // sizeof == 0x2C
+};
 
 struct MstBoundingBox {
 	int x1; // 0
@@ -427,7 +416,7 @@ struct MonsterObject1 {
 	int collideDistance; // 0xEC
 	int shootActionIndex; // 0xF0 [0..8]
 	int shootSource; // 0xF4
-	uint8_t unkF8; // 0xF8
+	uint8_t goalDirectionKeyMask; // 0xF8
 	int shootDirection; // 0xFC
 }; // sizeof == 256
 

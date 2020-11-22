@@ -448,7 +448,7 @@ void Game::objectUpdate_rockShadow(LvlObject *ptr, uint8_t *p) {
 		ptr->directionKeyMask = _level1OpHelper1KeyMaskTable[index * 2];
 		ptr->actionKeyMask = _level1OpHelper1KeyMaskTable[index * 2 + 1];
 	}
-	if ((ptr->actionKeyMask & 4) != 0 && sameScreen && (ptr->flags0 & 0x300) == 0x300) {
+	if ((_cheats & kCheatRockShadowNoHit) == 0 && (ptr->actionKeyMask & 4) != 0 && sameScreen && (ptr->flags0 & 0x300) == 0x300) {
 		if (clipLvlObjectsBoundingBox(_andyObject, ptr, 20)) {
 			_mstFlags |= 0x80000000;
 			setAndySpecialAnimation(0x80);

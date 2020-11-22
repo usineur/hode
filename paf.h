@@ -7,6 +7,7 @@
 #define PAF_PLAYER_H__
 
 #include "intern.h"
+#include "defs.h"
 #include "fileio.h"
 
 struct PafHeader {
@@ -20,7 +21,7 @@ struct PafHeader {
 	uint32_t readBufferSize;
 	int32_t maxVideoFrameBlocksCount;
 	int32_t maxAudioFrameBlocksCount;
-	int32_t frameRate;
+	int32_t frameDuration;
 };
 
 // names taken from the PSX filenames
@@ -61,7 +62,8 @@ struct PafAudioQueue {
 };
 
 struct PafCallback {
-	void (*proc)(void *userdata, int num, const uint8_t *frame);
+	void (*frameProc)(void *userdata, int num, const uint8_t *frame);
+	void (*endProc)(void *userdata);
 	void *userdata;
 };
 
@@ -73,7 +75,6 @@ struct PafPlayer {
 		kVideoWidth = 256,
 		kVideoHeight = 192,
 		kPageBufferSize = 256 * 256,
-		kFramesPerSec = 10, // 10hz
 		kAudioSamples = 2205,
 		kAudioStrideSize = 4922 // 256 * sizeof(int16_t) + 2205 * 2
 	};
@@ -97,9 +98,13 @@ struct PafPlayer {
 	uint32_t _flushAudioSize;
 	uint32_t _playedMask;
 	PafCallback _pafCb;
+	int _volume;
+	int _frameMs;
 
 	PafPlayer(FileSystem *fs);
 	~PafPlayer();
+
+	void setVolume(int volume);
 
 	void preload(int num);
 	void play(int num);

@@ -25,6 +25,7 @@ struct System_PSP : System {
 	virtual void setScaler(const char *name, int multiplier);
 	virtual void setGamma(float gamma);
 	virtual void setPalette(const uint8_t *pal, int n, int depth);
+	virtual void clearPalette();
 	virtual void copyRect(int x, int y, int w, int h, const uint8_t *buf, int pitch);
 	virtual void copyYuv(int w, int h, const uint8_t *y, int ypitch, const uint8_t *u, int upitch, const uint8_t *v, int vpitch);
 	virtual void fillRect(int x, int y, int w, int h, uint8_t color);
@@ -65,7 +66,7 @@ static uint8_t  __attribute__((aligned(16))) _texture[256 * 256];
 static uint32_t __attribute__((aligned(16))) _clut2[256];
 static uint8_t  __attribute__((aligned(16))) _texture2[256 * 256];
 
-PSP_MODULE_INFO("Heart of Darkness", 0, 2, 8);
+PSP_MODULE_INFO("Heart of Darkness", 0, 2, 9);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
 
 struct Vertex {
@@ -107,6 +108,10 @@ void System_printLog(FILE *fp, const char *s) {
 
 void System_fatalError(const char *s) {
 	sceKernelExitGame();
+}
+
+bool System_hasCommandLine() {
+	return false;
 }
 
 static int exitCallback(int arg1, int arg2, void *common) {
@@ -196,6 +201,13 @@ void System_PSP::setPalette(const uint8_t *pal, int n, int depth) {
 			b = (b << shift) | (b >> depth);
 		}
 		_clut[i] = GU_RGBA(r, g, b, 255);
+	}
+	sceKernelDcacheWritebackRange(_clut, sizeof(_clut));
+}
+
+void System_PSP::clearPalette() {
+	for (int i = 0; i < 256; ++i) {
+		_clut[i] = GU_RGBA(0, 0, 0, 255);
 	}
 	sceKernelDcacheWritebackRange(_clut, sizeof(_clut));
 }

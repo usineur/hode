@@ -46,6 +46,54 @@
   - rock_hod.mst: 5b49637348f6c6a2737a64cacf01f9bcef8e83f6
   - rock_hod.sss: 55c841f6c091c2ae68f0636c075c66405d00cc6a
   - setup.dat: 1d476d896cafd3d4af00b15eb2eb695a804a0662
+- name: Heart of Darkness German (Win32)
+  files:
+  - dark_hod.lvl: e7c188e5c47632d512d96d9da89fc8c060528d45
+  - dark_hod.mst: 6c2d93b2e31c299215d0fdf05ac1e8e8e95e9042
+  - dark_hod.sss: 8d5b19842e551b8ec73bda411c210cc96e08569a
+  - fort_hod.lvl: 82456ed6e29780b5b8031a67ba3dddb8da813c19
+  - fort_hod.mst: ce55095902ade9f1d8a198f271d0946d6228b90d
+  - fort_hod.sss: 6ff572b553d93040c9cad74891db05b2cc8267c6
+  - hod.dem: 5d40f812b6ed1385b7e502527911023f28136341
+  - hod.paf: f51a9f9addad0b21ab524840838fb8fd6e235396
+  - hod_res.dll: 09de4fb219ad63fc39f10a3f49bd7d003f3244b7
+  - hodwin32.exe: eb0f032f343e2c27d60291c79ae667034a0c7389
+    securom: false
+    version_info:
+    - Comments: Release Candidate 0
+    - CompanyName: Amazing Studio - 9 rue d' Enhgien - 75010 Paris FRANCE - Email: hod@amazingstudio.com
+    - FileDescription: Heart Of Darkness
+    - FileVersion: 1, 1, 0, 0
+    - InternalName: Heart Of Darkness
+    - LegalCopyright: (c) 1998 by Amazing Studio & Infogrames
+    - LegalTrademarks: by Amazing Studio - All rights reserved
+    - OriginalFilename: Heart Of Darkness
+    - PrivateBuild: HEARTMM5511
+    - ProductName: Heart Of Darkness  - Windows 95 / 98 & NT - DirectX 3.x or greater
+    - ProductVersion: 1, 1, 0, 0
+    - SpecialBuild: VC5.0 Sp3
+  - isld_hod.lvl: f78e9316f2187c0ca9e42abe8a2242b3d3e6feaf
+  - isld_hod.mst: 448e5dd5bbe59621279562d8695c9a864cb4c286
+  - isld_hod.sss: 61c5da6dfcf80684c56baebddb04125ca0c1f209
+  - lar1_hod.lvl: 84f7b33a9b57f2afa68063e0128512991f86dfa0
+  - lar1_hod.mst: 9db53a4a75327eeca45ffa5b761a9f04af5e5204
+  - lar1_hod.sss: 72667991fde3caf36978da1fa929695de80abe4b
+  - lar2_hod.lvl: 999b2548490f586f955c9f5c6db95f88d49102f3
+  - lar2_hod.mst: 333ea4e6be6ca9aad735fafe59177546aab41c4e
+  - lar2_hod.sss: c5c655b718ead1d2eb460a058df7eb3b795dea9e
+  - lava_hod.lvl: 2921eb2f78354e79c1257ef55543bb1a1492e914
+  - lava_hod.mst: c05ce42c0abdbb2dbfc109cbb4ea7eee1937445d
+  - lava_hod.sss: 8fc8d2c86f67e13ca840d604c603249b20723f85
+  - pwr1_hod.lvl: cd6489e11914770d95034aa6afaa2fc67f035ce8
+  - pwr1_hod.mst: f821e5686ae27b2ed5000ea4b38a464ecebe44a7
+  - pwr1_hod.sss: cbb39e1bfd24dcbd5bf65f9e0b92faaa9b6b02a6
+  - pwr2_hod.lvl: 7263ecf8d51d45c2c62dc11701eac03b67738fd8
+  - pwr2_hod.mst: 132b29e758a28529009e979ef31a29a42d0a5c4b
+  - pwr2_hod.sss: 24342241b4353777cc22696be8a684d635f9c809
+  - rock_hod.lvl: cdb3d7ad1ae13f2234380f79bc8ec57e1e505cef
+  - rock_hod.mst: 5b49637348f6c6a2737a64cacf01f9bcef8e83f6
+  - rock_hod.sss: 55c841f6c091c2ae68f0636c075c66405d00cc6a
+  - setup.dat: d362500a5c028a35f9341c2cb5c69901afba87c3
 - name: Heart of Darkness Italian (Win32)
   files:
   - dark_hod.lvl: e7c188e5c47632d512d96d9da89fc8c060528d45

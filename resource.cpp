@@ -142,6 +142,7 @@ Resource::Resource(FileSystem *fs)
 
 	_loadingImageBuffer = 0;
 	_fontBuffer = 0;
+	_fontDefaultColor = 0;
 	_menuBuffer0 = 0;
 	_menuBuffer1 = 0;
 
@@ -234,6 +235,12 @@ void Resource::loadSetupDat() {
 			} else {
 				memcpy(_fontBuffer, _loadingImageBuffer + offset, kFontSize);
 			}
+			for (int i = 0; i < kFontSize; ++i) {
+				_fontDefaultColor = _fontBuffer[i];
+				if (_fontDefaultColor != 0) {
+					break;
+				}
+			}
 		}
 	}
 	assert(_datHdr.yesNoQuitImage == hintsCount - 3);
@@ -241,23 +248,26 @@ void Resource::loadSetupDat() {
 }
 
 bool Resource::loadDatHintImage(int num, uint8_t *dst, uint8_t *pal) {
+	const int size = _datHdr.hintsImageSizeTable[num];
+	if (size == 0) {
+		return false;
+	}
+	const int offset = _datHdr.hintsImageOffsetTable[num];
+	assert(size <= 256 * 192);
+	_datFile->seek(offset, SEEK_SET);
+	_datFile->read(dst, size);
 	if (!_isPsx) {
-		const int offset = _datHdr.hintsImageOffsetTable[num];
-		const int size = _datHdr.hintsImageSizeTable[num];
-		assert(size == 256 * 192);
-		_datFile->seek(offset, SEEK_SET);
-		_datFile->read(dst, size);
 		if (_datHdr.version == 11) {
 			_datFile->seek(offset + fioAlignSizeTo2048(size), SEEK_SET); // align to next sector
 		}
 		_datFile->read(pal, 768);
-		return true;
 	}
-	return false;
+	return true;
 }
 
 bool Resource::loadDatLoadingImage(uint8_t *dst, uint8_t *pal) {
-	if (!_isPsx && _loadingImageBuffer) {
+	assert(!_isPsx);
+	if (_loadingImageBuffer) {
 		const uint32_t bufferSize = READ_LE_UINT32(_loadingImageBuffer);
 		const int size = decodeLZW(_loadingImageBuffer + 8, dst);
 		assert(size == 256 * 192);
@@ -927,7 +937,6 @@ void Resource::loadSssData(File *fp, const uint32_t baseOffset) {
 		}
 		// _sssPreloadInfosData = data;
 	}
-	// data += _sssHdr.preloadInfoCount * 8;
 	_sssPreloadInfosData.allocate(_sssHdr.preloadInfoCount);
 	for (int i = 0; i < _sssHdr.preloadInfoCount; ++i) {
 		_sssPreloadInfosData[i].count = fp->readUint32();
@@ -1578,8 +1587,8 @@ void Resource::loadMstData(File *fp) {
 	_mstMonsterActionData.allocate(_mstHdr.monsterActionDataCount);
 	for (int i = 0; i < _mstHdr.monsterActionDataCount; ++i) {
 		MstMonsterAction *m = &_mstMonsterActionData[i];
-		m->unk0 = fp->readUint16();
-		m->unk2 = fp->readUint16();
+		m->xRange = fp->readUint16();
+		m->yRange = fp->readUint16();
 		m->unk4 = fp->readByte();
 		m->direction = fp->readByte();
 		m->unk6 = fp->readByte();
@@ -1627,7 +1636,7 @@ void Resource::loadMstData(File *fp) {
 			for (uint32_t k = 0; k < m12[j].count; ++k) {
 				uint8_t data[28];
 				fp->read(data, sizeof(data));
-				m12[j].data[k].unk0 = READ_LE_UINT32(data);
+				m12[j].data[k].indexMonsterInfo = READ_LE_UINT32(data);
 				m12[j].data[k].indexUnk51 = READ_LE_UINT32(data + 0x4);
 				m12[j].data[k].xPos = READ_LE_UINT32(data + 0x8);
 				m12[j].data[k].yPos = READ_LE_UINT32(data + 0xC);
@@ -1678,7 +1687,7 @@ void Resource::loadMstData(File *fp) {
 			_mstMovingBoundsData[i].data1[j].unkF = fp->readByte();
 			const uint32_t num = _mstMovingBoundsData[i].data1[j].unk4;
 			assert(num < 32);
-			_mstMovingBoundsData[i].data1[j].offsetMonsterInfo = start * kMonsterInfoDataSize + num * 28;
+			_mstMovingBoundsData[i].data1[j].offsetMonsterInfo = start * kMonsterInfoDataSize + num * kMonsterInfoSize;
 			bytesRead += 16;
 		}
 		if (_mstMovingBoundsData[i].indexDataCount != 0) {
@@ -1701,7 +1710,7 @@ void Resource::loadMstData(File *fp) {
 		for (uint32_t j = 0; j < _mstShootData[i].count; ++j) {
 			_mstShootData[i].data[j].codeData = fp->readUint32();
 			_mstShootData[i].data[j].unk4 = fp->readUint32();
-			_mstShootData[i].data[j].unk8 = fp->readUint32();
+			_mstShootData[i].data[j].dirMask = fp->readUint32();
 			_mstShootData[i].data[j].xPos = fp->readUint32();
 			_mstShootData[i].data[j].yPos = fp->readUint32();
 			_mstShootData[i].data[j].width = fp->readUint32();
@@ -2068,4 +2077,21 @@ bool Resource::readSetupCfg(SetupConfig *config) {
 		return true;
 	}
 	return false;
+}
+
+void Resource::setDefaultsSetupCfg(SetupConfig *config, int num) {
+	assert(num >= 0 && num < 4);
+	memset(config->players[num].progress, 0, 10);
+	config->players[num].levelNum = 0;
+	config->players[num].checkpointNum = 0;
+	config->players[num].cutscenesMask = 0;
+	memset(config->players[num].controls, 0, 32);
+	config->players[num].controls[0x0] = 0x11;
+	config->players[num].controls[0x4] = 0x22;
+	config->players[num].controls[0x8] = 0x84;
+	config->players[num].controls[0xC] = 0x48;
+	config->players[num].difficulty = 1;
+	config->players[num].stereo = 1;
+	config->players[num].volume = 128;
+	config->players[num].lastLevelNum = 0;
 }

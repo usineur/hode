@@ -1,3 +1,20 @@
+* release 0.2.9d
+	- added gain to sounds
+	- added no-hit cheat for 'rock' and 'lava'
+
+* release 0.2.9c
+	- added original sounds limiter (16 channels)
+	- fixed checkpoint 7 for 'lar1' screen 19
+	- fixed some bounding box checks
+	- fixed sound glitches when resuming the game after a cutscene
+
+* release 0.2.9b
+	- added PSX hint screens
+	- added 'volume' submenu
+	- fixed sounds volume and panning
+	- fixed walk on chain bridge in 'lar1' screen 3
+	- fixed gate not closing in 'lar2' screen 8
+
 * release 0.2.9
 	- added PSP and Wii platforms specific code
 	- added support for PC demo v1.0 data files
