@@ -21,14 +21,10 @@ void debug(int mask, const char *msg, ...) {
 		va_start(va, msg);
 		vsprintf(buf, msg, va);
 		va_end(va);
-		printf("%s\n", buf);
-		fflush(stdout);
 #ifdef __ANDROID__
 		__android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s", buf);
 #endif
-#ifdef PSP
 		System_printLog(stdout, buf);
-#endif
 	}
 }
 
@@ -38,12 +34,8 @@ void error(const char *msg, ...) {
 	va_start(va, msg);
 	vsprintf(buf, msg, va);
 	va_end(va);
-	fprintf(stderr, "ERROR: %s!\n", buf);
 #ifdef __ANDROID__
 	__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", buf);
-#endif
-#ifdef PSP
-	System_printLog(stderr, buf);
 #endif
 	System_fatalError(buf);
 }
@@ -54,11 +46,8 @@ void warning(const char *msg, ...) {
 	va_start(va, msg);
 	vsprintf(buf, msg, va);
 	va_end(va);
-	fprintf(stderr, "WARNING: %s!\n", buf);
 #ifdef __ANDROID__
 	__android_log_print(ANDROID_LOG_WARN, LOG_TAG, "%s", buf);
 #endif
-#ifdef PSP
 	System_printLog(stderr, buf);
-#endif
 }

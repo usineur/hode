@@ -192,13 +192,13 @@ int decodeMDEC(const uint8_t *src, int len, const uint8_t *mborder, int mblen, i
 	const int yPitch = out->planes[kOutputPlaneY].pitch;
 	uint8_t *yPtr = out->planes[kOutputPlaneY].ptr + out->y * yPitch + out->x;
 	const int cbPitch = out->planes[kOutputPlaneCb].pitch;
-	uint8_t *cbPtr = out->planes[kOutputPlaneCb].ptr + out->y / 2 * cbPitch + out->x / 2;
+	uint8_t *cbPtr = out->planes[kOutputPlaneCb].ptr + (out->y * cbPitch + out->x) / 2;
 	const int crPitch = out->planes[kOutputPlaneCr].pitch;
-	uint8_t *crPtr = out->planes[kOutputPlaneCr].ptr + out->y / 2 * crPitch + out->x / 2;
+	uint8_t *crPtr = out->planes[kOutputPlaneCr].ptr + (out->y * crPitch + out->x) / 2;
 
 	int z = 0;
-	for (int x = 0; x < blockW; ++x) {
-		for (int y = 0; y < blockH; ++y) {
+	for (int x = 0, x2 = 0; x < blockW; ++x, x2 += 2) {
+		for (int y = 0, y2 = 0; y < blockH; ++y, y2 += 2) {
 			if (z < mblen) {
 				const uint8_t xy = mborder[z];
 				if ((xy & 15) != x || (xy >> 4) != y) {
@@ -208,10 +208,10 @@ int decodeMDEC(const uint8_t *src, int len, const uint8_t *mborder, int mblen, i
 			}
 			decodeBlock(&bs, x, y, crPtr, crPitch, qscale, version);
 			decodeBlock(&bs, x, y, cbPtr, cbPitch, qscale, version);
-			decodeBlock(&bs, 2 * x,     2 * y,     yPtr, yPitch, qscale, version);
-			decodeBlock(&bs, 2 * x + 1, 2 * y,     yPtr, yPitch, qscale, version);
-			decodeBlock(&bs, 2 * x,     2 * y + 1, yPtr, yPitch, qscale, version);
-			decodeBlock(&bs, 2 * x + 1, 2 * y + 1, yPtr, yPitch, qscale, version);
+			decodeBlock(&bs, x2,     y2,     yPtr, yPitch, qscale, version);
+			decodeBlock(&bs, x2 + 1, y2,     yPtr, yPitch, qscale, version);
+			decodeBlock(&bs, x2,     y2 + 1, yPtr, yPitch, qscale, version);
+			decodeBlock(&bs, x2 + 1, y2 + 1, yPtr, yPitch, qscale, version);
 			if (mborder && z == mblen) {
 				goto end;
 			}
@@ -220,7 +220,7 @@ int decodeMDEC(const uint8_t *src, int len, const uint8_t *mborder, int mblen, i
 end:
 	if (!mborder && bs.bitsAvailable() >= 11) {
 		const int eof = bs.getBits(11);
-		assert(eof == 0x3FE); // v2 frame
+		assert(eof == 0x3FE || eof == 0x3FF);
 	}
 
 	return bs._src - src;

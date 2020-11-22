@@ -2,6 +2,8 @@
 #include <malloc.h>
 #include <unistd.h>
 
+#include <fat.h>
+
 #include <gccore.h>
 #include <ogc/audio.h>
 #include <ogc/lwp_watchdog.h>
@@ -33,6 +35,7 @@ struct System_Wii : System {
 	virtual void setScaler(const char *name, int multiplier);
 	virtual void setGamma(float gamma);
 	virtual void setPalette(const uint8_t *pal, int n, int depth);
+	virtual void clearPalette();
 	virtual void copyRect(int x, int y, int w, int h, const uint8_t *buf, int pitch);
 	virtual void copyYuv(int w, int h, const uint8_t *y, int ypitch, const uint8_t *u, int upitch, const uint8_t *v, int vpitch);
 	virtual void fillRect(int x, int y, int w, int h, uint8_t color);
@@ -81,6 +84,10 @@ static int16_t __attribute__((aligned(32))) _resample[DMA_BUFFER_SAMPLES * 2];
 static uint8_t __attribute__((aligned(32))) _dma[2][DMA_BUFFER_SIZE];
 static int _current_dma;
 
+void System_earlyInit() {
+	fatInitDefault();
+}
+
 void System_fatalError(const char *s) {
 	GXRModeObj *rmodeObj = system_wii._rmodeObj;
 	if (!rmodeObj) {
@@ -94,6 +101,10 @@ void System_fatalError(const char *s) {
 }
 
 void System_printLog(FILE *fp, const char *s) {
+}
+
+bool System_hasCommandLine() {
+	return false;
 }
 
 System_Wii::System_Wii() {
@@ -144,6 +155,9 @@ void System_Wii::destroy() {
 	_xfb[0] = 0;
 	free(MEM_K1_TO_K0(_xfb[1]));
 	_xfb[1] = 0;
+
+	fatUnmount("sd:/");
+	fatUnmount("usb:/");
 }
 
 void System_Wii::setScaler(const char *name, int multiplier) {
@@ -172,6 +186,12 @@ void System_Wii::setPalette(const uint8_t *pal, int n, int depth) {
 		}
 		_clut[i] = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
 	}
+	DCFlushRange(_clut, sizeof(_clut));
+	GX_LoadTlut(&_tlutObj, GX_TLUT0);
+}
+
+void System_Wii::clearPalette() {
+	memset(_clut, 0, sizeof(_clut));
 	DCFlushRange(_clut, sizeof(_clut));
 	GX_LoadTlut(&_tlutObj, GX_TLUT0);
 }

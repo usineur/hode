@@ -43,19 +43,17 @@ Video::~Video() {
 	free(_mdec.planes[kOutputPlaneCr].ptr);
 }
 
-void Video::init(bool mdec) {
-	if (mdec) {
-		static const int w = (W + 15) & ~15;
-		static const int h = (H + 15) & ~15;
-		static const int w2 = w / 2;
-		static const int h2 = h / 2;
-		_mdec.planes[kOutputPlaneY].ptr = (uint8_t *)malloc(w * h);
-		_mdec.planes[kOutputPlaneY].pitch = w;
-		_mdec.planes[kOutputPlaneCb].ptr = (uint8_t *)malloc(w2 * h2);
-		_mdec.planes[kOutputPlaneCb].pitch = w2;
-		_mdec.planes[kOutputPlaneCr].ptr = (uint8_t *)malloc(w2 * h2);
-		_mdec.planes[kOutputPlaneCr].pitch = w2;
-	}
+void Video::initPsx() {
+	static const int w = (W + 15) & ~15;
+	static const int h = (H + 15) & ~15;
+	static const int w2 = w / 2;
+	static const int h2 = h / 2;
+	_mdec.planes[kOutputPlaneY].ptr = (uint8_t *)malloc(w * h);
+	_mdec.planes[kOutputPlaneY].pitch = w;
+	_mdec.planes[kOutputPlaneCb].ptr = (uint8_t *)malloc(w2 * h2);
+	_mdec.planes[kOutputPlaneCb].pitch = w2;
+	_mdec.planes[kOutputPlaneCr].ptr = (uint8_t *)malloc(w2 * h2);
+	_mdec.planes[kOutputPlaneCr].pitch = w2;
 }
 
 static int colorBrightness(int r, int g, int b) {
@@ -66,17 +64,17 @@ void Video::updateGamePalette(const uint16_t *pal) {
 	for (int i = 0; i < 256 * 3; ++i) {
 		_palette[i] = pal[i] >> 8;
 	}
-	g_system->setPalette(_palette, 256);
+	g_system->setPalette(_palette, 256, 8);
 }
 
 void Video::updateGameDisplay(uint8_t *buf) {
 	g_system->copyRect(0, 0, W, H, buf, 256);
 	if (_mdec.planes[kOutputPlaneY].ptr) {
-		updateYuvDisplay(&_mdec);
+		updateYuvDisplay();
 	}
 }
 
-void Video::updateYuvDisplay(MdecOutput *mdec) {
+void Video::updateYuvDisplay() {
 	g_system->copyYuv(Video::W, Video::H, _mdec.planes[0].ptr, _mdec.planes[0].pitch, _mdec.planes[1].ptr, _mdec.planes[1].pitch, _mdec.planes[2].ptr, _mdec.planes[2].pitch);
 }
 
@@ -93,7 +91,7 @@ void Video::clearBackBuffer() {
 
 void Video::clearPalette() {
 	memset(_palette, 0, sizeof(_palette));
-	g_system->setPalette(_palette, 256);
+	g_system->clearPalette();
 }
 
 void Video::decodeSPR(const uint8_t *src, uint8_t *dst, int x, int y, uint8_t flags, uint16_t spr_w, uint16_t spr_h) {
@@ -450,10 +448,10 @@ void Video::drawStringCharacter(int x, int y, uint8_t chr, uint8_t color, uint8_
 void Video::drawString(const char *s, int x, int y, uint8_t color, uint8_t *dst) {
 	for (int i = 0; s[i]; ++i) {
 		uint8_t chr = s[i];
-		if (chr >= 'a' && chr <= 'z') {
-			chr += 'A' - 'a';
-		}
 		if (chr != ' ') {
+			if (chr >= 'a' && chr <= 'z') {
+				chr += 'A' - 'a';
+			}
 			chr = findStringCharacterFontIndex(chr);
 			if (chr == 255) {
 				continue;
@@ -477,11 +475,14 @@ uint8_t Video::findWhiteColor() const {
 	return color;
 }
 
-void Video::decodeBackgroundPsx(const uint8_t *src, const int size, int w, int h, int x, int y) {
+void Video::decodeBackgroundPsx(const uint8_t *src, int size, int w, int h, int x, int y) {
 	_mdec.x = x;
 	_mdec.y = y;
 	_mdec.w = w;
 	_mdec.h = h;
+	if (size < 0) { // size not available
+		size = w * h * sizeof(uint16_t);
+	}
 	decodeMDEC(src, size, 0, 0, w, h, &_mdec);
 	copyYuvBackBuffer();
 }

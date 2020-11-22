@@ -29,6 +29,10 @@ void Mixer::queue(const int16_t *ptr, const int16_t *end, int panType, int panL,
 	++_mixingQueueSize;
 }
 
+static int gain(int v) {
+	return v + (v / 8) + (v / 16);
+}
+
 template <bool stereo, int panning>
 static void mixS16(int16_t *dst, const int16_t *src, int len, int panL, int panR) {
 
@@ -38,10 +42,10 @@ static void mixS16(int16_t *dst, const int16_t *src, int len, int panL, int panR
 		const int16_t sampleL = *src++;
 		const int16_t sampleR = stereo ? *src++ : sampleL;
 		if (panning != 1) {
-			dst[0] = CLIP(dst[0] + ((panL * sampleL) >> kPanBits), -32768, 32767);
+			dst[0] = CLIP(dst[0] + gain(((panL * sampleL) >> kPanBits)), -32768, 32767);
 		}
 		if (panning != 2) {
-			dst[1] = CLIP(dst[1] + ((panR * sampleR) >> kPanBits), -32768, 32767);
+			dst[1] = CLIP(dst[1] + gain(((panR * sampleR) >> kPanBits)), -32768, 32767);
 		}
 	}
 }

@@ -34,6 +34,7 @@ struct DatBitmapsGroup {
 
 struct Menu {
 	enum {
+		kDelayMs = 30,
 		kCheckpointLevelsCount = 8,
 		kCutsceneIndexesCount = 22, // kPafAnimation_cinema + 1
 		kOptionsCount = 19
@@ -86,9 +87,15 @@ struct Menu {
 	uint8_t _loadCutsceneButtonState;
 	int _cutsceneIndexes[kCutsceneIndexesCount];
 	int _settingNum;
+	int _controlsNum;
+	int _joystickControlsNum;
+	int _keyboardControlsNum;
 	int _difficultyNum;
 	int _soundNum;
 	uint8_t _soundVolume;
+	int _volumeState;
+	int _soundCounter;
+	int _soundTestSpriteNum;
 
 	Menu(Game *g, PafPlayer *paf, Resource *res, Video *video);
 
@@ -97,13 +104,15 @@ struct Menu {
 	void loadData();
 
 	int getSoundNum(int num, int index = 0) const;
-	void playSound(int num);
+	SssObject *playSound(int num);
+
+	void drawBitmap(const uint8_t *data, uint32_t size, bool setPalette = false);
 
 	void drawSprite(const DatSpritesGroup *spriteGroup, const uint8_t *ptr, uint32_t num, int x = -1, int y = -1);
 	void drawSpriteAnim(DatSpritesGroup *spriteGroup, const uint8_t *ptr, uint32_t num);
 
 	void pafCallback(int frameNum, const uint8_t *frameData);
-	void refreshScreen(bool updatePalette);
+	void refreshScreen();
 
 	bool mainLoop();
 
@@ -122,6 +131,14 @@ struct Menu {
 	void drawCutsceneScreen();
 	void drawSettingsScreen();
 	void handleSettingsScreen(int num);
+	void drawControlsScreen();
+	void handleControlsScreen(int num);
+	void drawJoystickKeyCode(int num);
+	void drawJoystickControlsScreen();
+	void handleJoystickControlsScreen(int num);
+	void drawKeyboardKeyCode(int num);
+	void drawKeyboardControlsScreen();
+	void handleKeyboardControlsScreen(int num);
 	void drawDifficultyScreen();
 	void handleDifficultyScreen(int num);
 	void drawSoundScreen();
@@ -130,7 +147,7 @@ struct Menu {
 	void handleLoadLevel(int num);
 	void handleLoadCheckpoint(int num);
 	void handleLoadCutscene(int num);
-	void handleOptions();
+	bool handleOptions();
 };
 
 #endif // MENU_H__

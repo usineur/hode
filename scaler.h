@@ -10,10 +10,7 @@
 
 typedef void (*ScaleProc32)(int factor, uint32_t *dst, int dstPitch, const uint32_t *src, int srcPitch, int w, int h);
 
-#define SCALER_TAG 1
-
 struct Scaler {
-	uint32_t tag;
 	const char *name;
 	int factorMin, factorMax;
 	ScaleProc32 scale;
