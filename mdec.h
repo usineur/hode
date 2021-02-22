@@ -19,6 +19,6 @@ struct MdecOutput {
 	} planes[3];
 };
 
-int decodeMDEC(const uint8_t *src, int len, const uint8_t *mborder, int mblen, int w, int h, MdecOutput *out);
+int decodeMDEC(const uint8_t *src, int len, const uint8_t *mbOrder, int mbLength, int w, int h, MdecOutput *out);
 
 #endif // MDEC_H__

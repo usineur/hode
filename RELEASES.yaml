@@ -254,6 +254,35 @@
   - rock_hod.mst: 24dee01526c06b6f003b2c8e22e4d5787df333c8
   - rock_hod.sss: ec683718d26bc1e0b4a254215621dd6c6c3e60b0
   - setup.dat: 957567bcc4ff5650d85fe543d34ff2f773bb8aca
+- name: Heart of Darkness The Adventure Begins V1.3 (Win32)
+  files:
+  - fort_hod.lvl: d08d11b148786ef4b7391ac7c877186ec4721980
+  - fort_hod.mst: 590a577830747d2ca1bee3fe3c5212e2a30e8dfa
+  - fort_hod.sss: 93120414e8077a3a205092a99001457d221e0a11
+  - hod_oem.paf: 2769653eb6ca0cfb485b47c8c83011bf498cb772
+  - hod_res.dll: 0b85a0b96f14d0da7becb76fb7cff03e4f865165
+  - hodwin32.exe: ba02865a54cbf952376771b233a8909102b6c862
+    securom: false
+    version_info:
+    - Comments: Release 1.3
+    - CompanyName: Amazing Studio - 9 rue d' Enhgien - 75010 Paris FRANCE - Email: hod@amazingstudio.com
+    - FileDescription: Heart Of Darkness
+    - FileVersion: 1, 3, 0, 0
+    - InternalName: Heart Of Darkness
+    - LegalCopyright: (c) 1998 by Amazing Studio & Infogrames
+    - LegalTrademarks: by Amazing Studio - All rights reserved
+    - OriginalFilename: Heart Of Darkness
+    - PrivateBuild: HEARTMM5511
+    - ProductName: Heart Of Darkness  - Windows 95 / 98 & NT - DirectX 3.x or greater
+    - ProductVersion: 1, 3, 0, 0
+    - SpecialBuild: VCpp 6.0
+  - pwr1_hod.lvl: a89df4acd7138588d0e1a30dff8df63d0c1f7092
+  - pwr1_hod.mst: f6e26461d888216457c4eadf1c71d9bf385dbbd6
+  - pwr1_hod.sss: b8e764c49f7c95f9c5f514c12788761d1d9d6030
+  - rock_hod.lvl: 9fddeac91b8de1cbbce35fa3330f674cb5e0e7c7
+  - rock_hod.mst: 24dee01526c06b6f003b2c8e22e4d5787df333c8
+  - rock_hod.sss: ec683718d26bc1e0b4a254215621dd6c6c3e60b0
+  - setup.dat: e6d1ae87b991d3cf623b8ec9fb33cdd2a3d4a1b4
 - name: Heart of Darkness Coca Cola Edition (Win32)
   files:
   - fort_hod.lvl: d08d11b148786ef4b7391ac7c877186ec4721980

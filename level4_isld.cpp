@@ -79,6 +79,7 @@ void Level_isld::postScreenUpdate_isld_screen1() {
 		++_screenCounterTable[1];
 		if (_screenCounterTable[1] > 21) {
 			_res->_screensState[1].s0 = 1;
+			_g->updateBackgroundPsx(1);
 			_res->_resLvlScreenBackgroundDataTable[1].currentBackgroundId = 1;
 		}
 	}
@@ -167,6 +168,7 @@ void Level_isld::postScreenUpdate_isld_screen15() {
 		++_screenCounterTable[15];
 		if (_screenCounterTable[15] >= 60) {
 			_res->_screensState[15].s0 = 1;
+			_g->updateBackgroundPsx(1);
 		}
 		break;
 	case 0:

@@ -6,10 +6,9 @@
 #if !defined(PSP) && !defined(WII)
 #include <SDL.h>
 #endif
+#include <ctype.h>
 #include <getopt.h>
 #include <sys/stat.h>
-
-#include "3p/inih/ini.h"
 
 #include "game.h"
 #include "menu.h"
@@ -81,8 +80,7 @@ static bool configBool(const char *value) {
 	return strcasecmp(value, "true") == 0 || (strlen(value) == 2 && (value[0] == 't' || value[0] == '1'));
 }
 
-static int handleConfigIni(void *userdata, const char *section, const char *name, const char *value) {
-	Game *g = (Game *)userdata;
+static void handleConfigIni(Game *g, const char *section, const char *name, const char *value) {
 	// fprintf(stdout, "config.ini: section '%s' name '%s' value '%s'\n", section, name, value);
 	if (strcmp(section, "engine") == 0) {
 		if (strcmp(name, "disable_paf") == 0) {
@@ -118,7 +116,45 @@ static int handleConfigIni(void *userdata, const char *section, const char *name
 			_widescreen = configBool(value);
 		}
 	}
-	return 0;
+}
+
+static void readConfigIni(const char *filename, Game *g) {
+	FILE *fp = fopen(filename, "rb");
+	if (fp) {
+		char *section = 0;
+		char buf[256];
+		while (fgets(buf, sizeof(buf), fp)) {
+			if (buf[0] == '#') {
+				continue;
+			}
+			if (buf[0] == '[') {
+				char *p = strchr(&buf[1], ']');
+				if (p) {
+					*p = 0;
+					free(section);
+					section = strdup(&buf[1]);
+				}
+				continue;
+			}
+			char *p = strchr(buf, '=');
+			if (!p) {
+				continue;
+			}
+			*p++ = 0;
+			while (*p && isspace(*p)) {
+				++p;
+			}
+			if (*p) {
+				char *q = p + strlen(p) - 1;
+				while (q > p && isspace(*q)) {
+					*q-- = 0;
+				}
+				handleConfigIni(g, section, buf, p);
+			}
+		}
+		free(section);
+		fclose(fp);
+	}
 }
 
 int main(int argc, char *argv[]) {
@@ -207,7 +243,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	Game *g = new Game(dataPath ? dataPath : _defaultDataPath, savePath ? savePath : _defaultSavePath, cheats);
-	ini_parse(_configIni, handleConfigIni, g);
+	readConfigIni(_configIni, g);
 	if (_runBenchmark) {
 		g->benchmarkCpu();
 	}
