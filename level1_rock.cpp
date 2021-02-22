@@ -88,6 +88,7 @@ void Level_rock::postScreenUpdate_rock_screen0() {
 		++_screenCounterTable[0];
 		if (_screenCounterTable[0] > 25) {
 			_res->_screensState[0].s0 = 1;
+			_g->updateBackgroundPsx(1);
 		}
 		if (_screenCounterTable[0] == 2) {
 			_g->setShakeScreen(3, 12);
@@ -129,6 +130,7 @@ void Level_rock::postScreenUpdate_rock_screen4() {
 			_g->setupScreenMask(4);
 		} else if (_screenCounterTable[4] > 46) {
 			_res->_screensState[4].s0 = 1;
+			_g->updateBackgroundPsx(1);
 		}
 		if (_screenCounterTable[4] == 31) {
 			_g->setShakeScreen(2, 12);
@@ -168,6 +170,7 @@ void Level_rock::postScreenUpdate_rock_screen9() {
 					_checkpoint = 5;
 				}
 				_res->_screensState[9].s0 = 1;
+				_g->updateBackgroundPsx(1);
 				_g->setAndySprite(2);
 				_andyObject->xPos = 105;
 				_andyObject->yPos = 52;
@@ -710,6 +713,7 @@ void Level_rock::preScreenUpdate_rock_screen16() {
 		break;
 	default:
 		_res->_screensState[16].s0 = 1;
+		_g->updateBackgroundPsx(1);
 		_g->_plasmaCannonFlags &= ~1;
 		_al = 1;
 		break;
@@ -738,6 +742,7 @@ void Level_rock::preScreenUpdate_rock_screen18() {
 		break;
 	default:
 		_res->_screensState[18].s0 = 1;
+		_g->updateBackgroundPsx(1);
 		_al = 1;
 		break;
 	}
@@ -762,6 +767,7 @@ void Level_rock::preScreenUpdate_rock_screen19() {
 		_al = 2;
 		break;
 	}
+	_g->updateBackgroundPsx(_al);
 	_res->_resLvlScreenBackgroundDataTable[19].currentBackgroundId = _al;
 	_res->_resLvlScreenBackgroundDataTable[19].currentMaskId = _al;
 	if (_res->_currentScreenResourceNum == 19) {

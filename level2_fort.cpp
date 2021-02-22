@@ -72,6 +72,7 @@ void Level_fort::postScreenUpdate_fort_screen1() {
 			_g->setupScreenMask(1);
 		} else if (_screenCounterTable[1] == 59) {
 			_res->_screensState[1].s0 = 1;
+			_g->updateBackgroundPsx(1);
 			_res->_resLvlScreenBackgroundDataTable[1].currentBackgroundId = 1;
 		}
 	}

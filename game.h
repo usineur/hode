@@ -307,6 +307,7 @@ struct Game {
 	int restoreAndyCollidesLava();
 	int updateAndyLvlObject();
 	void drawPlasmaCannon();
+	void updateBackgroundPsx(int num);
 	void drawScreen();
 	void updateLvlObjectList(LvlObject **list);
 	void updateLvlObjectLists();

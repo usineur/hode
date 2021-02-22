@@ -122,6 +122,7 @@ void Level_pwr1::postScreenUpdate_pwr1_screen6() {
 			_res->_screensState[6].s0 = 1;
 			dat->currentMaskId = 1;
 			dat->currentBackgroundId = 1;
+			_g->updateBackgroundPsx(1);
 			if (_checkpoint == 0) {
 				_checkpoint = 1;
 			}
@@ -131,7 +132,8 @@ void Level_pwr1::postScreenUpdate_pwr1_screen6() {
 		++_screenCounterTable[6];
 		if (_screenCounterTable[6] >= 54) {
 			_res->_screensState[6].s0 = 2;
-			dat->currentBackgroundId = 1;
+			dat->currentBackgroundId = 2;
+			_g->updateBackgroundPsx(2);
 		}
 		break;
 	default: {
@@ -242,6 +244,7 @@ void Level_pwr1::postScreenUpdate_pwr1_screen23() {
 			_res->_resLvlScreenBackgroundDataTable[23].currentMaskId = 1;
 			_res->_resLvlScreenBackgroundDataTable[23].currentBackgroundId = 1;
 			_g->setupScreenMask(23);
+			_g->updateBackgroundPsx(1);
 		}
 		break;
 	case 0:
@@ -267,6 +270,7 @@ void Level_pwr1::postScreenUpdate_pwr1_screen27() {
 		++_screenCounterTable[27];
 		if (_screenCounterTable[27] == 37) {
 			_res->_screensState[27].s0 = 1;
+			_g->updateBackgroundPsx(1);
 			_res->_resLvlScreenBackgroundDataTable[27].currentMaskId = 1;
 			_res->_resLvlScreenBackgroundDataTable[27].currentBackgroundId = 1;
 			_g->setupScreenMask(27);

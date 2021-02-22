@@ -1274,6 +1274,7 @@ void Game::restartLevel() {
 	preloadLevelScreenData(screenNum, kNoScreen);
 	_andyObject->levelData0x2988 = _res->_resLevelData0x2988PtrTable[_andyObject->spriteNum];
 	memset(_video->_backgroundLayer, 0, Video::W * Video::H);
+	_video->clearYuvBackBuffer();
 	resetScreen();
 	if (_andyObject->screenNum != screenNum) {
 		preloadLevelScreenData(_andyObject->screenNum, kNoScreen);
@@ -1817,8 +1818,16 @@ void Game::drawPlasmaCannon() {
 	_plasmaCannonObject = 0;
 }
 
+void Game::updateBackgroundPsx(int num) {
+	if (_res->_isPsx) {
+		const LvlBackgroundData *lvl = &_res->_resLvlScreenBackgroundDataTable[_res->_currentScreenResourceNum];
+		_video->decodeBackgroundPsx(lvl->backgroundBitmapTable[num] + 4, -1, Video::W, Video::H);
+	}
+}
+
 void Game::drawScreen() {
 	memcpy(_video->_frontLayer, _video->_backgroundLayer, Video::W * Video::H);
+	_video->copyYuvBackBuffer();
 
 	// redraw background animation sprites
 	LvlBackgroundData *dat = &_res->_resLvlScreenBackgroundDataTable[_res->_currentScreenResourceNum];
@@ -2718,11 +2727,6 @@ int Game::displayHintScreen(int num, int pause) {
 		_video->_paletteChanged = true;
 	}
 	unmuteSound();
-	if (isPsx) { // restore level screen bitmap
-		LvlBackgroundData *lvl = &_res->_resLvlScreenBackgroundDataTable[_res->_currentScreenResourceNum];
-		const uint8_t *bmp = lvl->backgroundBitmapTable[lvl->currentBackgroundId];
-		_video->decodeBackgroundPsx(bmp + 4, -1, Video::W, Video::H);
-	}
 	return confirmQuit && quit == kQuitYes;
 }
 

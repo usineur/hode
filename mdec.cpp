@@ -26,8 +26,8 @@ struct BitStream { // most significant 16 bits
 			_len += 16;
 		}
 		assert(_len >= count);
-		const int value = (_bits >> (_len - count)) & ((1 << count) - 1);
 		_len -= count;
+		const int value = (_bits >> _len) & ((1 << count) - 1);
 		return value;
 	}
 	int getSignedBits(int len) {
@@ -117,15 +117,15 @@ static void dequantizeBlock(int *coefficients, float *block, int scale) {
 	}
 }
 
-static const double _idct8x8[8][8] = {
-	{ 0.353553390593274,  0.490392640201615,  0.461939766255643,  0.415734806151273,  0.353553390593274,  0.277785116509801,  0.191341716182545,  0.097545161008064 },
-	{ 0.353553390593274,  0.415734806151273,  0.191341716182545, -0.097545161008064, -0.353553390593274, -0.490392640201615, -0.461939766255643, -0.277785116509801 },
-	{ 0.353553390593274,  0.277785116509801, -0.191341716182545, -0.490392640201615, -0.353553390593274,  0.097545161008064,  0.461939766255643,  0.415734806151273 },
-	{ 0.353553390593274,  0.097545161008064, -0.461939766255643, -0.277785116509801,  0.353553390593274,  0.415734806151273, -0.191341716182545, -0.490392640201615 },
-	{ 0.353553390593274, -0.097545161008064, -0.461939766255643,  0.277785116509801,  0.353553390593274, -0.415734806151273, -0.191341716182545,  0.490392640201615 },
-	{ 0.353553390593274, -0.277785116509801, -0.191341716182545,  0.490392640201615, -0.353553390593273, -0.097545161008064,  0.461939766255643, -0.415734806151273 },
-	{ 0.353553390593274, -0.415734806151273,  0.191341716182545,  0.097545161008064, -0.353553390593274,  0.490392640201615, -0.461939766255643,  0.277785116509801 },
-	{ 0.353553390593274, -0.490392640201615,  0.461939766255643, -0.415734806151273,  0.353553390593273, -0.277785116509801,  0.191341716182545, -0.097545161008064 }
+static const int16_t _idct8x8[8][8] = {
+	{ 23170,  32138,  30273,  27245,  23170,  18204,  12539,   6392 },
+	{ 23170,  27245,  12539,  -6393, -23171, -32139, -30274, -18205 },
+	{ 23170,  18204, -12540, -32139, -23171,   6392,  30273,  27245 },
+	{ 23170,   6392, -30274, -18205,  23170,  27245, -12540, -32139 },
+	{ 23170,  -6393, -30274,  18204,  23170, -27246, -12540,  32138 },
+	{ 23170, -18205, -12540,  32138, -23171,  -6393,  30273, -27246 },
+	{ 23170, -27246,  12539,   6392, -23171,  32138, -30274,  18204 },
+	{ 23170, -32139,  30273, -27246,  23170, -18205,  12539,  -6393 }
 };
 
 static void idct(float *dequantData, float *result) {
@@ -135,7 +135,7 @@ static void idct(float *dequantData, float *result) {
 		for (int x = 0; x < 8; x++) {
 			float p = 0;
 			for (int i = 0; i < 8; ++i) {
-				p += dequantData[i] * _idct8x8[x][i];
+				p += dequantData[i] * _idct8x8[x][i] / 0x10000;
 			}
 			tmp[y + x * 8] = p;
 		}
@@ -147,7 +147,7 @@ static void idct(float *dequantData, float *result) {
 		for (int y = 0; y < 8; y++) {
 			float p = 0;
 			for (int i = 0; i < 8; ++i) {
-				p += u[i] * _idct8x8[y][i];
+				p += u[i] * _idct8x8[y][i] / 0x10000;
 			}
 			result[y * 8 + x] = p;
 		}
@@ -176,7 +176,7 @@ static void decodeBlock(BitStream *bs, int x8, int y8, uint8_t *dst, int dstPitc
 	}
 }
 
-int decodeMDEC(const uint8_t *src, int len, const uint8_t *mborder, int mblen, int w, int h, MdecOutput *out) {
+int decodeMDEC(const uint8_t *src, int len, const uint8_t *mbOrder, int mbLength, int w, int h, MdecOutput *out) {
 	BitStream bs(src, len);
 	bs.getBits(16);
 	const uint16_t vlc = bs.getBits(16);
@@ -192,15 +192,15 @@ int decodeMDEC(const uint8_t *src, int len, const uint8_t *mborder, int mblen, i
 	const int yPitch = out->planes[kOutputPlaneY].pitch;
 	uint8_t *yPtr = out->planes[kOutputPlaneY].ptr + out->y * yPitch + out->x;
 	const int cbPitch = out->planes[kOutputPlaneCb].pitch;
-	uint8_t *cbPtr = out->planes[kOutputPlaneCb].ptr + (out->y * cbPitch + out->x) / 2;
+	uint8_t *cbPtr = out->planes[kOutputPlaneCb].ptr + (out->y / 2) * cbPitch + (out->x / 2);
 	const int crPitch = out->planes[kOutputPlaneCr].pitch;
-	uint8_t *crPtr = out->planes[kOutputPlaneCr].ptr + (out->y * crPitch + out->x) / 2;
+	uint8_t *crPtr = out->planes[kOutputPlaneCr].ptr + (out->y / 2) * crPitch + (out->x / 2);
 
 	int z = 0;
 	for (int x = 0, x2 = 0; x < blockW; ++x, x2 += 2) {
 		for (int y = 0, y2 = 0; y < blockH; ++y, y2 += 2) {
-			if (z < mblen) {
-				const uint8_t xy = mborder[z];
+			if (z < mbLength) {
+				const uint8_t xy = mbOrder[z];
 				if ((xy & 15) != x || (xy >> 4) != y) {
 					continue;
 				}
@@ -212,13 +212,13 @@ int decodeMDEC(const uint8_t *src, int len, const uint8_t *mborder, int mblen, i
 			decodeBlock(&bs, x2 + 1, y2,     yPtr, yPitch, qscale, version);
 			decodeBlock(&bs, x2,     y2 + 1, yPtr, yPitch, qscale, version);
 			decodeBlock(&bs, x2 + 1, y2 + 1, yPtr, yPitch, qscale, version);
-			if (mborder && z == mblen) {
+			if (mbOrder && z == mbLength) {
 				goto end;
 			}
 		}
 	}
 end:
-	if (!mborder && bs.bitsAvailable() >= 11) {
+	if (!mbOrder && bs.bitsAvailable() >= 11) {
 		const int eof = bs.getBits(11);
 		assert(eof == 0x3FE || eof == 0x3FF);
 	}

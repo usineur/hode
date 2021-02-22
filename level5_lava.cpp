@@ -86,6 +86,7 @@ void Level_lava::postScreenUpdate_lava_screen0() {
 		++_screenCounterTable[0];
 		if (_screenCounterTable[0] >= 11) {
 			_res->_screensState[0].s0 = 1;
+			_g->updateBackgroundPsx(1);
 		}
 		break;
 	case 0:

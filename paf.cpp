@@ -12,6 +12,7 @@ static const char *_filenames[] = {
 	"hod.paf",
 	"hod_demo.paf",
 	"hod_demo2.paf",
+	"hod_oem.paf",
 	0
 };
 
