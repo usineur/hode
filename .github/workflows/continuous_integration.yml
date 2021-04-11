@@ -1,0 +1,68 @@
+name: Continuous Integration
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: ${{ matrix.config.name }} | ${{ matrix.config.build_type }}
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - {
+            name: "Windows 64-bit",
+            os: windows-latest,
+            extra_options: "-A x64 -DVCPKG_TARGET_TRIPLET=x64-windows -DCMAKE_TOOLCHAIN_FILE=`pwd`/3p/vcpkg/scripts/buildsystems/vcpkg.cmake",
+            deps_cmdline: "`pwd`/3p/vcpkg/bootstrap-vcpkg.bat",
+            build_type: "Release"
+          }
+        - {
+            name: "Linux",
+            os: ubuntu-latest,
+            deps_cmdline: "sudo apt update && sudo apt install g++ libsdl2-dev",
+            build_type: "Release"
+          }
+          
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Install Dependencies
+      shell: bash
+      run: |
+        git submodule update --init
+        if [[ ! -z "${{ matrix.config.deps_cmdline }}" ]]; then
+          eval ${{ matrix.config.deps_cmdline }}
+        fi       
+        mkdir build
+    - name: Configure
+      shell: bash
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} ${{ matrix.config.extra_options }} .
+    - name: Build
+      shell: bash
+      run: |
+        export MAKEFLAGS=--keep-going
+        cmake --build build --config ${{ matrix.config.build_type }} --parallel 3
+    - name: Create Package
+      shell: bash
+      run: |
+        cd build
+        mkdir package
+        if [[ "${{ runner.os }}" == 'Windows' ]]; then
+          cp ${{ matrix.config.build_type }}/hode.exe ${{ matrix.config.build_type }}/SDL2.dll ${{ matrix.config.build_type }}/getopt.dll ../hode.ini package
+        elif [[ "${{ runner.os }}" == 'Linux' ]]; then
+          cp hode ../hode.ini package
+        fi
+    - name: Upload Package
+      uses: actions/upload-artifact@v1
+      with:
+        path: build/package
+        name: ${{ matrix.config.name }} ${{ matrix.config.build_type }}
+
+    - name: List Build Directory
+      if: always()
+      shell: bash
+      run: |
+        git status
+        ls -lR build

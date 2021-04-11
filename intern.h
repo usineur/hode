@@ -38,7 +38,7 @@ static const bool kByteSwapData = true;
 static const bool kByteSwapData = (__BYTE_ORDER == __BIG_ENDIAN);
 #endif
 
-#define ARRAYSIZE(a) (sizeof(a)/sizeof(a[0]))
+#define ARRAYSIZEH(a) (sizeof(a)/sizeof(a[0]))
 #define PACKED __attribute__((packed))
 
 inline uint16_t READ_LE_UINT16(const void *ptr) {

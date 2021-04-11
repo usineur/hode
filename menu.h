@@ -2,6 +2,14 @@
 #ifndef MENU_H__
 #define MENU_H__
 
+#ifdef __GNUC__
+#define PACK( __Declaration__ ) __Declaration__ __attribute__((__packed__))
+#endif
+
+#ifdef _MSC_VER
+#define PACK( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
+#endif
+
 #include "intern.h"
 
 struct Game;
@@ -9,28 +17,28 @@ struct PafPlayer;
 struct Resource;
 struct Video;
 
-struct DatSpritesGroup {
+PACK(struct DatSpritesGroup {
 	uint32_t currentFrameOffset; // 0
 	uint32_t firstFrameOffset; // 4
 	uint32_t size; // 8 following this header
 	uint16_t count; // 12
 	uint16_t num; // 14
-} PACKED; // sizeof == 16
+}); // sizeof == 16
 
-struct DatBitmap {
+PACK(struct DatBitmap {
 	uint32_t size; // 0
 	uint32_t unk4; // 4
 	// 8 lzw + 768 palette
-} PACKED; // sizeof == 8
+}); // sizeof == 8
 
-struct DatBitmapsGroup {
+PACK(struct DatBitmapsGroup {
 	uint8_t w;
 	uint8_t h;
 	uint8_t colors;
 	uint8_t data;
 	uint32_t offset; // 4
 	uint32_t palette; // 8
-} PACKED; // sizeof == 12
+}); // sizeof == 12
 
 struct Menu {
 	enum {

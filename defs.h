@@ -6,6 +6,14 @@
 #ifndef DEFS_H__
 #define DEFS_H__
 
+#ifdef __GNUC__
+#define PACK( __Declaration__ ) __Declaration__ __attribute__((__packed__))
+#endif
+
+#ifdef _MSC_VER
+#define PACK( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
+#endif
+
 enum {
 	kPosTopScreen    = 0,
 	kPosRightScreen  = 1,
@@ -70,10 +78,10 @@ struct SetupConfig {
 	uint8_t checksum;
 }; // sizeof == 212
 
-struct Point8_t {
+PACK(struct Point8_t {
 	int8_t x;
 	int8_t y;
-} PACKED;
+});
 
 struct Point16_t {
 	int16_t x;
@@ -88,7 +96,7 @@ struct AnimBackgroundData {
 	uint16_t currentFrame; // 14
 };
 
-struct LvlAnimSeqHeader {
+PACK(struct LvlAnimSeqHeader {
 	uint16_t firstFrame;
 	uint16_t unk2; // unused
 	int8_t dx; // 4
@@ -100,35 +108,35 @@ struct LvlAnimSeqHeader {
 	uint16_t flags1;
 	uint16_t unkE; // unused
 	uint32_t offset; // 0x10, LvlAnimSeqFrameHeader
-} PACKED; // sizeof == 20
+}); // sizeof == 20
 
-struct LvlAnimSeqFrameHeader {
+PACK(struct LvlAnimSeqFrameHeader {
 	uint16_t move; // 0
 	uint16_t anim; // 2
 	uint8_t frame; // 4
 	uint8_t flags; // 5
 	int8_t xOffset; // 6
 	int8_t yOffset; // 7
-} PACKED; // sizeof == 8
+}); // sizeof == 8
 
-struct LvlAnimHeader {
+PACK(struct LvlAnimHeader {
 	uint16_t unk0;
 	uint8_t seqCount;
 	uint8_t unk2;
 	uint32_t seqOffset;
-} PACKED; // sizeof == 8
+}); // sizeof == 8
 
-struct LvlSprMoveData {
+PACK(struct LvlSprMoveData {
 	uint8_t op1;
 	uint8_t op2;
 	uint16_t op3;
 	uint16_t op4;
 	uint16_t unk0x6; // padding to 8 bytes
-} PACKED; // sizeof == 8
+}); // sizeof == 8
 
-struct LvlSprHotspotData {
+PACK(struct LvlSprHotspotData {
 	Point8_t pts[8];
-} PACKED; // sizeof == 16
+}); // sizeof == 16
 
 struct LvlObjectData {
 	uint8_t unk0;

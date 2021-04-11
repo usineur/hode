@@ -1,0 +1,97 @@
+name: Publish Release
+
+on:
+  workflow_dispatch:
+  
+jobs:
+  build:
+    name: ${{ matrix.config.name }} | ${{ matrix.config.build_type }}
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - {
+            name: "Windows 64-bit",
+            os: windows-latest,
+            extra_options: "-A x64 -DVCPKG_TARGET_TRIPLET=x64-windows -DCMAKE_TOOLCHAIN_FILE=`pwd`/3p/vcpkg/scripts/buildsystems/vcpkg.cmake",
+            deps_cmdline: "`pwd`/3p/vcpkg/bootstrap-vcpkg.bat",
+            build_type: "Release"
+          }
+        - {
+            name: "Linux",
+            os: ubuntu-latest,
+            deps_cmdline: "sudo apt update && sudo apt install g++ libsdl2-dev",
+            build_type: "Release"
+          }
+          
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Install Dependencies
+      shell: bash
+      run: |
+        git submodule update --init
+        if [[ ! -z "${{ matrix.config.deps_cmdline }}" ]]; then
+          eval ${{ matrix.config.deps_cmdline }}
+        fi       
+        mkdir build
+    - name: Configure
+      shell: bash
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} ${{ matrix.config.extra_options }} .
+    - name: Build
+      shell: bash
+      run: |
+        export MAKEFLAGS=--keep-going
+        cmake --build build --config ${{ matrix.config.build_type }} --parallel 3
+    - name: Create Package
+      shell: bash
+      run: |
+        cd build
+        mkdir package
+        if [[ "${{ runner.os }}" == 'Windows' ]]; then
+          cp ${{ matrix.config.build_type }}/hode.exe ${{ matrix.config.build_type }}/SDL2.dll ${{ matrix.config.build_type }}/getopt.dll ../hode.ini ../README.* package
+          tar -czf hode-win-x64.tar.gz package
+        elif [[ "${{ runner.os }}" == 'Linux' ]]; then
+          cp hode ../hode.ini ../README.* package
+        fi
+    - name: Upload Package
+      uses: actions/upload-artifact@v1
+      with:
+        path: build/package
+        name: ${{ matrix.config.name }} ${{ matrix.config.build_type }}
+
+    - name: List Build Directory
+      if: always()
+      shell: bash
+      run: |
+        git status
+        ls -lR build
+        
+    - name: Create Release
+      id: create_release
+      if: runner.os == 'Windows'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+      with:
+        tag_name: 0.2.9d-autobuild-2021-apr-10-03
+        release_name: hode 0.2.9d
+        body: |
+          hode 0.2.9d built on GitHub servers.
+          On Windows 7, use 7z to unzip tar.gz files.
+        draft: false
+        prerelease: false
+          
+    - name: Upload Release Asset
+      id: upload-release-asset
+      if: runner.os == 'Windows'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: ./build/hode-win-x64.tar.gz
+        asset_name: hode-win-x64.tar.gz
+        asset_content_type: application/gzip
