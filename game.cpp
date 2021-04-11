@@ -234,7 +234,7 @@ void Game::transformShadowLayer(int delta) {
 		r = _pwr2_screenTransformLut[_res->_currentScreenResourceNum * 2 + 1];
 	}
 	if (r != 0) {
-		assert(r < ARRAYSIZEH(_screenTransformRects));
+		assert(r < ARRAYSIZE(_screenTransformRects));
 		const BoundingBox *b = &_screenTransformRects[r];
 		const int offset = b->y1 * Video::W + b->x1;
 		src = _video->_frontLayer + offset;
