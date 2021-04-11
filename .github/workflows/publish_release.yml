@@ -52,7 +52,7 @@ jobs:
         mkdir package
         if [[ "${{ runner.os }}" == 'Windows' ]]; then
           cp ${{ matrix.config.build_type }}/hode.exe ${{ matrix.config.build_type }}/SDL2.dll ${{ matrix.config.build_type }}/getopt.dll ../hode.ini ../README.* package
-          tar -czf hode-win-x64.tar.gz package
+          7z a hode-win-x64.zip ./package/*
         elif [[ "${{ runner.os }}" == 'Linux' ]]; then
           cp hode ../hode.ini ../README.* package
         fi
@@ -76,11 +76,10 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
       with:
-        tag_name: 0.2.9d-autobuild-2021-apr-10-03
+        tag_name: 0.2.9d-autobuild-2021-apr-11-001
         release_name: hode 0.2.9d
         body: |
           hode 0.2.9d built on GitHub servers.
-          On Windows 7, use 7z to unzip tar.gz files.
         draft: false
         prerelease: false
           
@@ -92,6 +91,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-        asset_path: ./build/hode-win-x64.tar.gz
-        asset_name: hode-win-x64.tar.gz
-        asset_content_type: application/gzip
+        asset_path: ./build/hode-win-x64.zip
+        asset_name: hode-win-x64.zip
+        asset_content_type: application/zip
