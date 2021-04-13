@@ -19,6 +19,7 @@
 #include "resource.h"
 #include "system.h"
 #include "video.h"
+#include "compat.h"
 
 #ifdef __SWITCH__
 #include <switch.h>

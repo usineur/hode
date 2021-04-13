@@ -1,0 +1,9 @@
+{
+  "name": "hode",
+  "version-string": "0.2.9d",
+  "dependencies": [
+    "sdl2",
+    "getopt",
+    "dirent"
+  ]
+}

@@ -6,3 +6,7 @@
 	path = 3p/libxbr-standalone
 	url = https://github.com/Treeki/libxbr-standalone.git
 	ignore = dirty
+[submodule "3p/vcpkg"]
+	path = 3p/vcpkg
+	url = https://github.com/microsoft/vcpkg.git
+	ignore = dirty
