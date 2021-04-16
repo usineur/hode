@@ -69,10 +69,11 @@ struct Menu {
 	const uint8_t *_optionsButtonSpritesData;
 	DatSpritesGroup *_currentOptionButtonSprite;
 	int _currentOptionButtonSound;
-
 	const uint8_t *_digitsData;
 	const uint8_t *_optionData;
 	const uint8_t *_soundData;
+	DatSpritesGroup *_psxSprites[3];
+	const uint8_t *_psxPalettes[3];
 
 	uint8_t _paletteBuffer[256 * 3];
 	uint8_t _loadLevelButtonState;

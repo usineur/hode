@@ -988,7 +988,6 @@ void Game::executeMstCode() {
 	}
 	++_executeMstLogicCounter;
 	if (_mstLevelGatesMask != 0) {
-		_mstHelper1Count = 0;
 		executeMstCodeHelper1();
 		_mstLevelGatesMask = 0;
 	}
@@ -1183,10 +1182,11 @@ int Game::mstWalkPathUpdateWalkNode(MstWalkPath *walkPath, MstWalkNode *walkNode
 }
 
 void Game::executeMstCodeHelper1() {
+	int count = 0;
 	for (int i = 0; i < _res->_mstHdr.walkPathDataCount; ++i) {
 		MstWalkPath *walkPath = &_res->_mstWalkPathData[i];
 		if (walkPath->mask & _mstLevelGatesMask) {
-			++_mstHelper1Count;
+			++count;
 			for (uint32_t j = 0; j < walkPath->count; ++j) {
 				for (int k = 0; k < 2; ++k) {
 					walkPath->data[j].coords[0][k] = -1;
@@ -1206,7 +1206,7 @@ void Game::executeMstCodeHelper1() {
 			mstWalkPathUpdateIndex(walkPath, 1);
 		}
 	}
-	if (_mstHelper1Count != 0) {
+	if (count != 0) {
 		for (int i = 0; i < kMaxMonsterObjects1; ++i) {
 			MonsterObject1 *m = &_monsterObjects1Table[i];
 			if (!m->m46) {
@@ -4434,9 +4434,9 @@ int Game::mstTask_main(Task *t) {
 				}
 				e = CLIP(e, -1, _res->_mstHdr.screensCount - 1);
 				if (p[0] == 224) {
-					_mstOp67_type = m->unk8;
-					_mstOp67_flags1 = m->unk9;
-					_mstOp67_unk = m->unkC;
+					_mstOp67_type = m->type;
+					_mstOp67_flags1 = m->flags1;
+					// _mstOp67_flags2 = m->flags2;
 					_mstOp67_x1 = a;
 					_mstOp67_x2 = b;
 					_mstOp67_y1 = c;
@@ -4444,9 +4444,9 @@ int Game::mstTask_main(Task *t) {
 					_mstOp67_screenNum = e;
 					break;
 				} else if (p[0] == 225) {
-					_mstOp68_type = m->unk8;
-					_mstOp68_arg9 = m->unk9;
-					_mstOp68_flags1 = m->unkC;
+					_mstOp68_type = m->type;
+					_mstOp68_flags1 = m->flags1;
+					_mstOp68_flags2 = m->flags2;
 					_mstOp68_x1 = a;
 					_mstOp68_x2 = b;
 					_mstOp68_y1 = c;
@@ -4465,7 +4465,7 @@ int Game::mstTask_main(Task *t) {
 						}
 					}
 				}
-				mstOp67_addMonster(t, a, b, c, d, e, m->unk8, m->unk9, m->unkC, m->unkB, 0, m->unkE);
+				mstOp67_addMonster(t, a, b, c, d, e, m->type, m->flags1, m->flags2, m->unkB, 0, m->unkE);
 			}
 			break;
 		case 226: { // 68 - add_monster_group
@@ -6864,7 +6864,7 @@ void Game::mstOp68_addMonsterGroup(Task *t, const uint8_t *p, int a, int b, int 
 	}
 	int j = 0;
 	for (int i = 0; i < a; ++i) {
-		mstOp67_addMonster(t, _mstOp67_x1, _mstOp67_x2, _mstOp67_y1, _mstOp67_y2, _mstOp67_screenNum, _mstOp67_type, _mstOp67_flags1, _mstOp68_flags1, data[j].m42Index, data[j].m46Index, d);
+		mstOp67_addMonster(t, _mstOp67_x1, _mstOp67_x2, _mstOp67_y1, _mstOp67_y2, _mstOp67_screenNum, _mstOp67_type, _mstOp67_flags1, _mstOp68_flags2, data[j].m42Index, data[j].m46Index, d);
 		if (--c == 0) {
 			return;
 		}
@@ -6873,7 +6873,7 @@ void Game::mstOp68_addMonsterGroup(Task *t, const uint8_t *p, int a, int b, int 
 		}
 	}
 	for (int i = 0; i < b; ++i) {
-		mstOp67_addMonster(t, _mstOp68_x1, _mstOp68_x2, _mstOp68_y1, _mstOp68_y2, _mstOp68_screenNum, _mstOp68_type, _mstOp68_arg9, _mstOp68_flags1, data[j].m42Index, data[j].m46Index, d);
+		mstOp67_addMonster(t, _mstOp68_x1, _mstOp68_x2, _mstOp68_y1, _mstOp68_y2, _mstOp68_screenNum, _mstOp68_type, _mstOp68_flags1, _mstOp68_flags2, data[j].m42Index, data[j].m46Index, d);
 		if (--c == 0) {
 			return;
 		}

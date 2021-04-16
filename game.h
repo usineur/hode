@@ -161,12 +161,10 @@ struct Game {
 	bool _specialAnimFlag;
 	AndyShootData _andyShootsTable[kMaxAndyShoots];
 	int _andyShootsCount;
-	uint8_t _mstOp68_type, _mstOp68_arg9, _mstOp67_type;
-	uint8_t _mstOp67_flags1;
-	uint16_t _mstOp67_unk;
+	uint8_t _mstOp68_type, _mstOp68_flags1, _mstOp67_type, _mstOp67_flags1;
 	int _mstOp67_x1, _mstOp67_x2, _mstOp67_y1, _mstOp67_y2;
 	int8_t _mstOp67_screenNum;
-	uint16_t _mstOp68_flags1;
+	uint16_t _mstOp68_flags2;
 	int _mstOp68_x1, _mstOp68_x2, _mstOp68_y1, _mstOp68_y2;
 	int8_t _mstOp68_screenNum;
 	uint32_t _mstLevelGatesMask;
@@ -204,7 +202,6 @@ struct Game {
 	int _xMstPos1, _yMstPos1;
 	int _xMstPos2, _yMstPos2; // xMstDist1, yMstDist1
 	int _xMstPos3, _yMstPos3;
-	int _mstHelper1Count;
 	int _mstActionNum;
 	uint32_t _mstAndyVarMask;
 	int _mstChasingMonstersCount;

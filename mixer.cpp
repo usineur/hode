@@ -15,7 +15,7 @@ Mixer::~Mixer() {
 }
 
 void Mixer::queue(const int16_t *ptr, const int16_t *end, int panType, int panL, int panR, bool stereo) {
-	if (_mixingQueueSize >= kPcmChannels) {
+	if (_mixingQueueSize >= kMixingQueueSize) {
 		warning("MixingQueue overflow %d", _mixingQueueSize);
 		return;
 	}

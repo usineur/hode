@@ -1753,11 +1753,11 @@ void Resource::loadMstData(File *fp) {
 		_mstOp223Data[i].indexVar2 = fp->readUint16();
 		_mstOp223Data[i].indexVar3 = fp->readUint16();
 		_mstOp223Data[i].indexVar4 = fp->readUint16();
-		_mstOp223Data[i].unk8      = fp->readByte();
-		_mstOp223Data[i].unk9      = fp->readByte();
+		_mstOp223Data[i].type      = fp->readByte();
+		_mstOp223Data[i].flags1    = fp->readByte();
 		_mstOp223Data[i].indexVar5 = fp->readByte();
 		_mstOp223Data[i].unkB      = fp->readByte();
-		_mstOp223Data[i].unkC      = fp->readUint16();
+		_mstOp223Data[i].flags2    = fp->readUint16();
 		_mstOp223Data[i].unkE      = fp->readUint16();
 		_mstOp223Data[i].maskVars  = fp->readUint32();
 		bytesRead += 20;

@@ -170,7 +170,7 @@ static void decodeBlock(BitStream *bs, int x8, int y8, uint8_t *dst, int dstPitc
 	for (int y = 0; y < 8; y++) {
 		for (int x = 0; x < 8; x++) {
 			const int val = (int)round(idctData[y * 8 + x]); // (-128,127) range
-			dst[x] = (val < -128) ? 0 : ((val > 127) ? 255 : (128 + val));
+			dst[x] = (val <= -128) ? 0 : ((val >= 127) ? 255 : (128 + val));
 		}
 		dst += dstPitch;
 	}
