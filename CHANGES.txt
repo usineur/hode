@@ -1,3 +1,8 @@
+* release 0.2.9f
+	- added 'linear' graphics scaler
+	- enabled PSX options menu
+	- fixed '1x' scaling
+
 * release 0.2.9e
 	- fixed graphics glitches with PSX backgrounds
 	- removed 'inih' and 'libxbr-standalone' dependencies

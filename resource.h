@@ -316,11 +316,11 @@ struct MstOp223Data {
 	int16_t indexVar2; // 2
 	int16_t indexVar3; // 4
 	int16_t indexVar4; // 6
-	uint8_t unk8; // 8
-	uint8_t unk9;
+	uint8_t type; // 8
+	uint8_t flags1;
 	int8_t indexVar5; // A
 	int8_t unkB; // B
-	uint16_t unkC; // C
+	uint16_t flags2; // C
 	uint16_t unkE; // E
 	uint32_t maskVars; // 0x10
 }; // sizeof == 20
