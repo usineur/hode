@@ -427,7 +427,7 @@ void System_SDL2::updateScreen(bool drawWidescreen) {
 		if (_shakeDy > 0) {
 			clearScreen(dst, dstPitch, 0, 0, w, _shakeDy);
 			h -= _shakeDy;
-			dst += _shakeDy * dstPitch;
+			dst += _shakeDy * dstPitch * _texScale;
 		} else if (_shakeDy < 0) {
 			h += _shakeDy;
 			clearScreen(dst, dstPitch, 0, h, w, -_shakeDy);
@@ -436,7 +436,7 @@ void System_SDL2::updateScreen(bool drawWidescreen) {
 		if (_shakeDx > 0) {
 			clearScreen(dst, dstPitch, 0, 0, _shakeDx, h);
 			w -= _shakeDx;
-			dst += _shakeDx;
+			dst += _shakeDx * _texScale;
 		} else if (_shakeDx < 0) {
 			w += _shakeDx;
 			clearScreen(dst, dstPitch, w, 0, -_shakeDx, h);
