@@ -282,8 +282,7 @@ void PafPlayer::decodeVideoFrameOp0(const uint8_t *base, const uint8_t *src, uin
 		for (int i = 0; i < count; ++i) {
 			uint8_t *dst = getVideoPageOffset((src[0] << 8) | src[1]);
 			uint32_t offset = (src[1] & 0x7F) * 2;
-			uint32_t end = READ_LE_UINT16(src + 2); src += 4;
-			end += offset;
+			const uint32_t end = READ_LE_UINT16(src + 2) + offset; src += 4;
 			do {
 				++offset;
 				pafCopy4x4h(dst, src);
@@ -440,9 +439,10 @@ void PafPlayer::decodeAudioFrame(const uint8_t *src, uint32_t offset, uint32_t s
 void PafPlayer::mix(int16_t *buf, int samples) {
 	while (_audioQueue && samples > 0) {
 		assert(_audioQueue->size != 0);
-		*buf++ = _audioQueue->buffer[_audioQueue->offset++];
-		*buf++ = _audioQueue->buffer[_audioQueue->offset++];
-		samples -= 2;
+		const int count = MIN(samples, _audioQueue->size - _audioQueue->offset);
+		memcpy(buf, _audioQueue->buffer + _audioQueue->offset, count * sizeof(int16_t));
+		buf += count;
+		_audioQueue->offset += count;
 		if (_audioQueue->offset >= _audioQueue->size) {
 			assert(_audioQueue->offset == _audioQueue->size);
 			PafAudioQueue *next = _audioQueue->next;
@@ -450,6 +450,7 @@ void PafPlayer::mix(int16_t *buf, int samples) {
 			free(_audioQueue);
 			_audioQueue = next;
 		}
+		samples -= count;
 	}
 	if (!_audioQueue) {
 		_audioQueueTail = 0;
