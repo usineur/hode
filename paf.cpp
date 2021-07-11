@@ -270,11 +270,10 @@ uint8_t *PafPlayer::getVideoPageOffset(uint16_t val) {
 }
 
 void PafPlayer::decodeVideoFrameOp0(const uint8_t *base, const uint8_t *src, uint8_t code) {
-	int count = *src++;
+	const int count = *src++;
 	if (count != 0) {
 		if ((code & 0x10) != 0) {
-			int align = src - base;
-			align &= 3;
+			const int align = (src - base) & 3;
 			if (align != 0) {
 				src += 4 - align;
 			}
@@ -363,9 +362,9 @@ void PafPlayer::decodeVideoFrameOp2(const uint8_t *src) {
 void PafPlayer::decodeVideoFrameOp4(const uint8_t *src) {
 	uint8_t *dst = _pageBuffers[_currentPageBuffer];
 	src += 2;
-	int size = kVideoWidth * kVideoHeight;
-	while (size != 0) {
-		int8_t code = *src++;
+	const uint8_t *end = dst + kVideoWidth * kVideoHeight;
+	while (dst < end) {
+		const int8_t code = *src++;
 		int count;
 		if (code < 0) {
 			count = 1 - code;
@@ -377,7 +376,6 @@ void PafPlayer::decodeVideoFrameOp4(const uint8_t *src) {
 			src += count;
 		}
 		dst += count;
-		size -= count;
 	}
 }
 
