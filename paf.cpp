@@ -188,8 +188,8 @@ void PafPlayer::decodeVideoFrame(const uint8_t *src) {
 		_currentPageBuffer = 0;
 	}
 	if (code & 0x40) {
-		int index = src[0];
-		int count = (src[1] + 1) * 3;
+		const int index = src[0];
+		const int count = (src[1] + 1) * 3;
 		assert(index * 3 + count <= 768);
 		src += 2;
 		memcpy(_paletteBuffer + index * 3, src, count);
@@ -309,39 +309,40 @@ void PafPlayer::decodeVideoFrameOp0(const uint8_t *base, const uint8_t *src, uin
 	uint8_t mask = 0;
 	uint8_t color = 0;
 	const uint8_t *src2 = 0;
+	const char *seq;
 
 	dst = _pageBuffers[_currentPageBuffer];
 	for (int y = 0; y < kVideoHeight; y += 4, dst += kVideoWidth * 3) {
-		for (int x = 0; x < kVideoWidth; x += 8) {
-			uint8_t updateIndex = *opcodesData++;
-			for (int i = 0; i < 2; ++i, dst += 4) {
-				const char *opcodes = updateSequences[updateIndex >> 4];
-				updateIndex <<= 4;
-				while (*opcodes) {
-					uint32_t offset = kVideoWidth * 2;
-					const int code = *opcodes++;
-					switch (code) {
-					case 2:
-						offset = 0;
-					case 3:
-						color = *src++;
-					case 4:
-						mask = *src++;
-						pafCopyColorMask(mask >> 4, dst + offset, color);
-						offset += kVideoWidth;
-						pafCopyColorMask(mask & 15, dst + offset, color);
-						break;
-					case 5:
-						offset = 0;
-					case 6:
-						src2 = getVideoPageOffset((src[0] << 8) | src[1]); src += 2;
-					case 7:
-						mask = *src++;
-						pafCopySrcMask(mask >> 4, dst + offset, src2 + offset);
-						offset += kVideoWidth;
-						pafCopySrcMask(mask & 15, dst + offset, src2 + offset);
-						break;
-					}
+		for (int x = 0; x < kVideoWidth; x += 4, dst += 4) {
+			if (x & 4) {
+				seq = updateSequences[*opcodesData & 15];
+				++opcodesData;
+			} else {
+				seq = updateSequences[*opcodesData >> 4];
+			}
+			for (; (code = *seq) != 0; ++seq) {
+				uint32_t offset = kVideoWidth * 2;
+				switch (code) {
+				case 2:
+					offset = 0;
+				case 3:
+					color = *src++;
+				case 4:
+					mask = *src++;
+					pafCopyColorMask(mask >> 4, dst + offset, color);
+					offset += kVideoWidth;
+					pafCopyColorMask(mask & 15, dst + offset, color);
+					break;
+				case 5:
+					offset = 0;
+				case 6:
+					src2 = getVideoPageOffset((src[0] << 8) | src[1]); src += 2;
+				case 7:
+					mask = *src++;
+					pafCopySrcMask(mask >> 4, dst + offset, src2 + offset);
+					offset += kVideoWidth;
+					pafCopySrcMask(mask & 15, dst + offset, src2 + offset);
+					break;
 				}
 			}
 		}
@@ -361,7 +362,7 @@ void PafPlayer::decodeVideoFrameOp2(const uint8_t *src) {
 
 void PafPlayer::decodeVideoFrameOp4(const uint8_t *src) {
 	uint8_t *dst = _pageBuffers[_currentPageBuffer];
-	src += 2;
+	src += 2; // compressed size
 	const uint8_t *end = dst + kVideoWidth * kVideoHeight;
 	while (dst < end) {
 		const int8_t code = *src++;
