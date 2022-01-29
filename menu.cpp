@@ -1840,11 +1840,7 @@ bool Menu::handleOptions() {
 			changeToOption(num);
 			break;
 		case 9:
-			PafCallback pafCb;
-			pafCb = _paf->_pafCb;
-			_paf->setCallback(0);
 			handleLoadCutscene(num);
-			_paf->setCallback(&pafCb);
 			break;
 		case 10:
 			handleLoadLevel(num);

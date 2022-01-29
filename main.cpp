@@ -310,10 +310,6 @@ int main(int argc, char *argv[]) {
 	free(dataPath);
 	free(savePath);
 #endif
-#ifdef WII
-	fatUnmount("sd:/");
-	fatUnmount("usb:/");
-#endif
 #ifdef __SWITCH__
 	socketExit();
 #endif
