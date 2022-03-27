@@ -1952,7 +1952,7 @@ void Game::mainLoop(int level, int checkpoint, bool levelChanged) {
 	_currentLevel = level;
 	createLevel();
 	assert(checkpoint < _res->_datHdr.levelCheckpointsCount[level]);
-	_level->_checkpoint = checkpoint;
+	_currentLevelCheckpoint = _level->_checkpoint = checkpoint;
 	_mix._lock(1);
 	_res->loadLevelData(_currentLevel);
 	clearSoundObjects();

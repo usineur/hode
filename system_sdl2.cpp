@@ -50,7 +50,7 @@ struct System_SDL2 : System {
 	SDL_Renderer *_renderer;
 	SDL_Texture *_texture;
 	SDL_Texture *_backgroundTexture; // YUV (PSX)
-	int _texW, _texH;
+	int _texW, _texH, _texScale;
 	SDL_PixelFormat *_fmt;
 	uint32_t _pal[256];
 	int _screenW, _screenH;
@@ -402,10 +402,10 @@ void System_SDL2::shakeScreen(int dx, int dy) {
 	_shakeDy = dy;
 }
 
-static void clearScreen(uint32_t *dst, int dstPitch, int x, int y, int w, int h) {
-	uint32_t *p = dst + (y * dstPitch + x) * _scalerMultiplier;
-	for (int j = 0; j < h * _scalerMultiplier; ++j) {
-		memset(p, 0, w * sizeof(uint32_t) * _scalerMultiplier);
+static void clearScreen(uint32_t *dst, int dstPitch, int x, int y, int w, int h, int scale) {
+	uint32_t *p = dst + (y * dstPitch + x) * scale;
+	for (int j = 0; j < h * scale; ++j) {
+		memset(p, 0, w * sizeof(uint32_t) * scale);
 		p += dstPitch;
 	}
 }
@@ -425,21 +425,21 @@ void System_SDL2::updateScreen(bool drawWidescreen) {
 	const int srcPitch = _screenW;
 	if (!_widescreenTexture) {
 		if (_shakeDy > 0) {
-			clearScreen(dst, dstPitch, 0, 0, w, _shakeDy);
+			clearScreen(dst, dstPitch, 0, 0, w, _shakeDy, _texScale);
 			h -= _shakeDy;
 			dst += _shakeDy * dstPitch * _texScale;
 		} else if (_shakeDy < 0) {
 			h += _shakeDy;
-			clearScreen(dst, dstPitch, 0, h, w, -_shakeDy);
+			clearScreen(dst, dstPitch, 0, h, w, -_shakeDy, _texScale);
 			src -= _shakeDy * srcPitch;
 		}
 		if (_shakeDx > 0) {
-			clearScreen(dst, dstPitch, 0, 0, _shakeDx, h);
+			clearScreen(dst, dstPitch, 0, 0, _shakeDx, h, _texScale);
 			w -= _shakeDx;
 			dst += _shakeDx * _texScale;
 		} else if (_shakeDx < 0) {
 			w += _shakeDx;
-			clearScreen(dst, dstPitch, w, 0, -_shakeDx, h);
+			clearScreen(dst, dstPitch, w, 0, -_shakeDx, h, _texScale);
 			src -= _shakeDx;
 		}
 	}
@@ -448,7 +448,7 @@ void System_SDL2::updateScreen(bool drawWidescreen) {
 			dst[i] = _pal[src[i]];
 		}
 	} else {
-		_scalerProc(dst, dstPitch, src, w, w, h, _pal);
+		_scalerProc(dst, dstPitch, src, srcPitch, w, h, _pal);
 	}
 	SDL_UnlockTexture(_texture);
 
@@ -825,9 +825,11 @@ void System_SDL2::prepareScaledGfx(const char *caption, bool fullscreen, bool wi
 	if (_scalerProc) {
 		_texW = w;
 		_texH = h;
+		_texScale = _scalerMultiplier;
 	} else {
 		_texW = _screenW;
 		_texH = _screenH;
+		_texScale = 1;
 	}
 	const int windowW = widescreen ? h * 16 / 9 : w;
 	const int windowH = h;
