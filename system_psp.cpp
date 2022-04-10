@@ -158,18 +158,17 @@ void System_PSP::init(const char *title, int w, int h, bool fullscreen, bool wid
 	sceGuStart(GU_DIRECT, _dlist);
 
 	const int fbSize = SCREEN_PITCH * SCREEN_H * sizeof(uint32_t); // rgba
-	const int zbSize = SCREEN_PITCH * SCREEN_H * sizeof(uint16_t); // 16 bits
 	_vramOffset = 0;
 	sceGuDrawBuffer(GU_PSM_8888, (void *)_vramOffset, SCREEN_PITCH); _vramOffset += fbSize;
 	sceGuDispBuffer(SCREEN_W, SCREEN_H, (void *)_vramOffset, SCREEN_PITCH); _vramOffset += fbSize;
-	sceGuDepthBuffer((void *)_vramOffset, SCREEN_PITCH); _vramOffset += zbSize;
 
 	sceGuOffset(2048 - (SCREEN_W / 2), 2048 - (SCREEN_H / 2));
 	sceGuViewport(2048, 2048, SCREEN_W, SCREEN_H);
 	sceGuScissor(0, 0, SCREEN_W, SCREEN_H);
 	sceGuEnable(GU_SCISSOR_TEST);
 	sceGuEnable(GU_TEXTURE_2D);
-	sceGuClear(GU_COLOR_BUFFER_BIT | GU_DEPTH_BUFFER_BIT);
+	sceGuDisable(GU_DEPTH_TEST);
+	sceGuClear(GU_COLOR_BUFFER_BIT);
 
 	sceGuFinish();
 	sceGuSync(GU_SYNC_WHAT_DONE, GU_SYNC_FINISH);
@@ -196,9 +195,9 @@ void System_PSP::setPalette(const uint8_t *pal, int n, int depth) {
 		int g = pal[i * 3 + 1];
 		int b = pal[i * 3 + 2];
 		if (shift != 0) {
-			r = (r << shift) | (r >> depth);
-			g = (g << shift) | (g >> depth);
-			b = (b << shift) | (b >> depth);
+			r = (r << shift) | (r >> (depth - shift));
+			g = (g << shift) | (g >> (depth - shift));
+			b = (b << shift) | (b >> (depth - shift));
 		}
 		_clut[i] = GU_RGBA(r, g, b, 255);
 	}
