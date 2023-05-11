@@ -18,12 +18,16 @@ static ScaleProc _scalerProc;
 
 const Scaler scaler_linear = {
 	"linear",
-	2, 4
+	2, 4,
+	0,
+	{ 0, 0, 0 }
 };
 
 const Scaler scaler_nearest = {
 	"nearest",
-	2, 4
+	2, 4,
+	0,
+	{ 0, 0, 0 }
 };
 
 static const Scaler *_scalers[] = {

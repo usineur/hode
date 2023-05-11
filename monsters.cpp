@@ -3417,6 +3417,7 @@ int Game::getTaskAndyVar(int index, Task *t) const {
 				}
 			}
 		}
+		break;
 	default:
 		warning("getTaskAndyVar unhandled index %d", index);
 		break;
@@ -3616,6 +3617,7 @@ int Game::getTaskFlag(Task *t, int num, int type) const {
 				return ((m->flags48 & (1 << num)) != 0) ? 1 : 0;
 			}
 		}
+		break;
 	default:
 		warning("getTaskFlag unhandled type %d num %d", type, num);
 		break;

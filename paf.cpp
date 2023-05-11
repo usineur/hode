@@ -325,8 +325,10 @@ void PafPlayer::decodeVideoFrameOp0(const uint8_t *base, const uint8_t *src, uin
 				switch (code) {
 				case 2:
 					offset = 0;
+					/* fall-through */
 				case 3:
 					color = *src++;
+					/* fall-through */
 				case 4:
 					mask = *src++;
 					pafCopyColorMask(mask >> 4, dst + offset, color);
@@ -335,8 +337,10 @@ void PafPlayer::decodeVideoFrameOp0(const uint8_t *base, const uint8_t *src, uin
 					break;
 				case 5:
 					offset = 0;
+					/* fall-through */
 				case 6:
 					src2 = getVideoPageOffset((src[0] << 8) | src[1]); src += 2;
+					/* fall-through */
 				case 7:
 					mask = *src++;
 					pafCopySrcMask(mask >> 4, dst + offset, src2 + offset);
