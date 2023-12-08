@@ -180,9 +180,9 @@ void System_Wii::setPalette(const uint8_t *pal, int n, int depth) {
 		int g = pal[i * 3 + 1];
 		int b = pal[i * 3 + 2];
 		if (shift != 0) {
-			r = (r << shift) | (r >> depth);
-			g = (g << shift) | (g >> depth);
-			b = (b << shift) | (b >> depth);
+			r = (r << shift) | (r >> (depth - shift));
+			g = (g << shift) | (g >> (depth - shift));
+			b = (b << shift) | (b >> (depth - shift));
 		}
 		_clut[i] = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
 	}

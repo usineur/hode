@@ -254,7 +254,7 @@ int main(int argc, char *argv[]) {
 				cheats |= atoi(optarg);
 				break;
 			default:
-				fprintf(stdout, "%s\n", _usage);
+				fprintf(stdout, _usage, argv[0]);
 				return -1;
 			}
 		}

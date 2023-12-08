@@ -1038,7 +1038,7 @@ int Game::getSoundObjectPanning(SssObject *so) const {
 void Game::setSoundObjectPanning(SssObject *so) {
 	if ((so->flags & kFlagPaused) == 0 && so->volume != 0 && _snd_masterVolume != 0) {
 		int volume = ((so->filter->volumeCurrent >> 16) * so->volume) >> 7;
-		int panning = 0;
+		int panning = so->panning;
 		if (so->panningPtr) {
 			int priority = CLIP(so->priority + so->filter->priorityCurrent, 0, 7);
 			if (so->panning == -2) {
