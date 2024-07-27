@@ -876,7 +876,8 @@ void System_SDL2::prepareScaledGfx(const char *caption, bool fullscreen, bool wi
 	}
 	const int windowW = widescreen ? h * 16 / 9 : w;
 	const int windowH = h;
-	const int flags = fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_RESIZABLE;
+	int flags = fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_RESIZABLE;
+	flags |= SDL_WINDOW_ALLOW_HIGHDPI;
 	_window = SDL_CreateWindow(caption, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowW, windowH, flags);
 	SDL_Surface *icon = SDL_LoadBMP(kIconBmp);
 	if (icon) {
