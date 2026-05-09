@@ -47,6 +47,7 @@ PafPlayer::PafPlayer(FileSystem *fs)
 	memset(&_pafCb, 0, sizeof(_pafCb));
 	_volume = 128;
 	_frameMs = kFrameDuration;
+	_prerenderMode = false;
 }
 
 PafPlayer::~PafPlayer() {
@@ -478,7 +479,7 @@ void PafPlayer::mainLoop() {
 	int currentFrameBlock = 0;
 
 	AudioCallback prevAudioCb;
-	if (_demuxAudioFrameBlocks) {
+	if (_demuxAudioFrameBlocks && !_prerenderMode) {
 		AudioCallback audioCb;
 		audioCb.proc = mixAudio;
 		audioCb.userdata = this;
@@ -512,22 +513,28 @@ void PafPlayer::mainLoop() {
 
 		if (_pafCb.frameProc) {
 			_pafCb.frameProc(_pafCb.userdata, i, _pageBuffers[_currentPageBuffer]);
-		} else {
+		} else if (!_prerenderMode) {
 			g_system->copyRect(0, 0, kVideoWidth, kVideoHeight, _pageBuffers[_currentPageBuffer], kVideoWidth);
 		}
 		if (_paletteChanged) {
 			_paletteChanged = false;
-			g_system->setPalette(_paletteBuffer, 256, 6);
+			if (!_prerenderMode) {
+				g_system->setPalette(_paletteBuffer, 256, 6);
+			}
 		}
-		g_system->updateScreen(false);
+		if (!_prerenderMode) {
+			g_system->updateScreen(false);
+		}
 		g_system->processEvents();
-		if (g_system->inp.keyPressed(SYS_INP_ESC) || g_system->inp.skip) {
+		if (g_system->inp.quit || g_system->inp.keyPressed(SYS_INP_ESC)) {
 			break;
 		}
 
-		const int delay = MAX<int>(10, frameTime - g_system->getTimeStamp());
-		g_system->sleep(delay);
-		frameTime = g_system->getTimeStamp() + frameMs;
+		if (!_prerenderMode) {
+			const int delay = MAX<int>(10, frameTime - g_system->getTimeStamp());
+			g_system->sleep(delay);
+			frameTime = g_system->getTimeStamp() + frameMs;
+		}
 
 		// set next decoding video page
 		++_currentPageBuffer;
@@ -539,11 +546,28 @@ void PafPlayer::mainLoop() {
 	}
 
 	// restore audio callback
-	if (_demuxAudioFrameBlocks) {
+	if (_demuxAudioFrameBlocks && !_prerenderMode) {
 		g_system->setAudioCallback(prevAudioCb);
 	}
 
 	unload();
+}
+
+int PafPlayer::peekFramesCount(int num) {
+	preload(num);
+	const int count = (_videoNum == num) ? (int)_pafHdr.framesCount : 0;
+	unload();
+	return count;
+}
+
+void PafPlayer::prerender(int num) {
+	// Don't pollute _playedMask (which is persisted to the save file as
+	// "cutscenes the user has watched") just because we walked the frames.
+	const uint32_t savedPlayedMask = _playedMask;
+	_prerenderMode = true;
+	play(num);
+	_prerenderMode = false;
+	_playedMask = savedPlayedMask;
 }
 
 void PafPlayer::setCallback(const PafCallback *pafCb) {

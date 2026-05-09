@@ -10,6 +10,7 @@
 static const bool kUseShadowColorLut = false;
 
 Video::Video() {
+	_font = 0;
 	_displayShadowLayer = false;
 	_drawLine.x1 = 0;
 	_drawLine.y1 = 0;

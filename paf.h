@@ -100,6 +100,7 @@ struct PafPlayer {
 	PafCallback _pafCb;
 	int _volume;
 	int _frameMs;
+	bool _prerenderMode; // true: skip audio/display/sleep, just decode & cache
 
 	PafPlayer(FileSystem *fs);
 	~PafPlayer();
@@ -126,6 +127,15 @@ struct PafPlayer {
 	void mainLoop();
 
 	void setCallback(const PafCallback *pafCb);
+
+	// Decode every frame as fast as possible (no audio, no display, no sleep)
+	// — invokes _pafCb.frameProc on each frame so a caching callback can
+	// populate disk cache.
+	void prerender(int num);
+
+	// Read the PAF header for `num` and return the frame count, leaving the
+	// player unloaded. Used to size a unified progress bar before prerender.
+	int peekFramesCount(int num);
 };
 
 #endif // PAF_PLAYER_H__

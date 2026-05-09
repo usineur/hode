@@ -12,10 +12,6 @@
 
 static const char *kIconBmp = "icon.bmp";
 
-#ifdef __vita__
-static bool axis[4]= { false, false, false, false };
-#endif
-
 static int _scalerMultiplier = 3;
 static const Scaler *_scaler = &scaler_xbr;
 static ScaleProc _scalerProc;
@@ -99,6 +95,10 @@ struct System_SDL2 : System {
 	void setupDefaultKeyMappings();
 	void updateKeys(PlayerInput *inp);
 	void prepareScaledGfx(const char *caption, bool fullscreen, bool widescreen, bool yuv);
+
+	virtual int waitForKeyPress();
+	virtual void applyKeyboardControls(const uint8_t *controls);
+	virtual void copyRectRGBA(int x, int y, int w, int h, const uint32_t *buf, int pitch);
 };
 
 static System_SDL2 system_sdl2;
@@ -612,24 +612,12 @@ void System_SDL2::processEvents() {
 				case SDL_CONTROLLER_AXIS_RIGHTX:
 					if (ev.caxis.value < -kJoystickCommitValue) {
 						pad.mask |= SYS_INP_LEFT;
-#ifdef __vita__
-						axis[0] = true;
-					} else if (axis[0]) {
-						axis[0] = false;
-#else
 					} else {
-#endif
 						pad.mask &= ~SYS_INP_LEFT;
 					}
 					if (ev.caxis.value > kJoystickCommitValue) {
 						pad.mask |= SYS_INP_RIGHT;
-#ifdef __vita__
-						axis[1] = true;
-					} else if (axis[1]) {
-						axis[1] = false;
-#else
 					} else {
-#endif
 						pad.mask &= ~SYS_INP_RIGHT;
 					}
 					break;
@@ -637,36 +625,15 @@ void System_SDL2::processEvents() {
 				case SDL_CONTROLLER_AXIS_RIGHTY:
 					if (ev.caxis.value < -kJoystickCommitValue) {
 						pad.mask |= SYS_INP_UP;
-#ifdef __vita__
-						axis[2] = true;
-					} else if (axis[2]) {
-						axis[2] = false;
-#else
 					} else {
-#endif
 						pad.mask &= ~SYS_INP_UP;
 					}
 					if (ev.caxis.value > kJoystickCommitValue) {
 						pad.mask |= SYS_INP_DOWN;
-#ifdef __vita__
-						axis[3] = true;
-					} else if (axis[3]) {
-						axis[3] = false;
-#else
 					} else {
-#endif
 						pad.mask &= ~SYS_INP_DOWN;
 					}
 					break;
-#ifdef __SWITCH__
-				case SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
-					if (ev.caxis.value > 0) {
-						pad.mask |= SYS_INP_RUN;
-					} else {
-						pad.mask &= ~SYS_INP_RUN;
-					}
-					break;
-#endif
 				}
 			}
 			break;
@@ -704,10 +671,8 @@ void System_SDL2::processEvents() {
 					}
 					break;
 				case SDL_CONTROLLER_BUTTON_BACK:
-					inp.skip = pressed;
-					break;
 				case SDL_CONTROLLER_BUTTON_START:
-					inp.exit = pressed;
+					inp.quit = pressed;
 					break;
 				case SDL_CONTROLLER_BUTTON_DPAD_UP:
 					if (pressed) {
@@ -774,7 +739,7 @@ void System_SDL2::startAudio(AudioCallback callback) {
 		_audioCb = callback;
 		SDL_PauseAudio(0);
 	} else {
-		error("System_SDL2::startAudio() Unable to open sound device");
+		warning("System_SDL2::startAudio() Unable to open sound device");
 	}
 }
 
@@ -852,6 +817,125 @@ void System_SDL2::updateKeys(PlayerInput *inp) {
 		}
 	}
 	inp->mask |= pad.mask;
+}
+
+static uint8_t scancodeToDisplayCode(int scancode) {
+	if (scancode >= SDL_SCANCODE_A && scancode <= SDL_SCANCODE_Z) {
+		return 0x41 + (scancode - SDL_SCANCODE_A);
+	}
+	if (scancode >= SDL_SCANCODE_1 && scancode <= SDL_SCANCODE_9) {
+		return 0x31 + (scancode - SDL_SCANCODE_1);
+	}
+	if (scancode == SDL_SCANCODE_0) return 0x30;
+	if (scancode == SDL_SCANCODE_LSHIFT || scancode == SDL_SCANCODE_RSHIFT) return 0x10;
+	if (scancode == SDL_SCANCODE_LCTRL || scancode == SDL_SCANCODE_RCTRL) return 0x11;
+	if (scancode == SDL_SCANCODE_LALT || scancode == SDL_SCANCODE_RALT) return 0x12;
+	// Non-letter "useful" keys: still accepted for binding even if the
+	// menu's small icon font has no glyph (drawKeyboardKeyCode just skips).
+	if (scancode == SDL_SCANCODE_SPACE)     return 0x13;
+	if (scancode == SDL_SCANCODE_RETURN)    return 0x14;
+	if (scancode == SDL_SCANCODE_KP_ENTER)  return 0x14;
+	if (scancode == SDL_SCANCODE_TAB)       return 0x15;
+	if (scancode == SDL_SCANCODE_BACKSPACE) return 0x16;
+	if (scancode == SDL_SCANCODE_LGUI || scancode == SDL_SCANCODE_RGUI) return 0x17;
+	return 0;
+}
+
+int System_SDL2::waitForKeyPress() {
+	SDL_Event ev;
+	int result = 0;
+	while (result == 0) {
+		while (SDL_PollEvent(&ev)) {
+			if (ev.type == SDL_KEYDOWN) {
+				if (ev.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+					result = -1;
+					break;
+				}
+				// reject direction keys (used for menu navigation)
+				const int sc = ev.key.keysym.scancode;
+				if (sc == SDL_SCANCODE_LEFT || sc == SDL_SCANCODE_RIGHT ||
+				    sc == SDL_SCANCODE_UP || sc == SDL_SCANCODE_DOWN) {
+					continue;
+				}
+				const uint8_t code = scancodeToDisplayCode(sc);
+				if (code != 0) {
+					result = sc;
+					break;
+				}
+			}
+			if (ev.type == SDL_QUIT) {
+				inp.quit = true;
+				result = -1;
+				break;
+			}
+		}
+		if (result == 0) {
+			SDL_Delay(10);
+		}
+	}
+	// Snapshot current key state and mark it as "already held" so the menu's
+	// next processEvents() doesn't see a fresh keyPressed/keyReleased edge
+	// for keys still down from bind mode (e.g. ESC to cancel, or the SELECT
+	// key that opened bind mode in the first place).
+	updateKeys(&inp);
+	inp.prevMask = inp.mask;
+	pad.prevMask = pad.mask;
+	return result;
+}
+
+void System_SDL2::applyKeyboardControls(const uint8_t *controls) {
+	bool hasKeyboardControls = false;
+	for (int i = 16; i < 24; ++i) {
+		if (controls[i] != 0) {
+			hasKeyboardControls = true;
+			break;
+		}
+	}
+	// Always start from the original default mappings (LCtrl/F = Run,
+	// LAlt/G = Jump, LShift/H = Shoot, D/Space = Special, plus arrows + ESC).
+	// User-bound keys are ADDED on top — otherwise binding one action would
+	// wipe the default keys for the others, and the menu's select handling
+	// (which requires SYS_INP_RUN/JUMP/SHOOT) would stop working for the
+	// remaining actions.
+	setupDefaultKeyMappings();
+	if (!hasKeyboardControls) {
+		return;
+	}
+	static const uint8_t actionMasks[] = {
+		SYS_INP_RUN,
+		SYS_INP_JUMP,
+		SYS_INP_SHOOT,
+		SYS_INP_SHOOT | SYS_INP_RUN
+	};
+	for (int action = 0; action < 4; ++action) {
+		for (int slot = 0; slot < 2; ++slot) {
+			const uint8_t scancode = controls[16 + 2 * action + slot];
+			if (scancode != 0) {
+				addKeyMapping(scancode, actionMasks[action]);
+			}
+		}
+	}
+}
+
+void System_SDL2::copyRectRGBA(int x, int y, int w, int h, const uint32_t *buf, int pitch) {
+	// For HD mode: blit RGBA directly to renderer via a temporary texture
+	SDL_Texture *hdTex = SDL_CreateTexture(_renderer,
+		SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, w, h);
+	if (hdTex) {
+		void *texPtr = 0;
+		int texPitch = 0;
+		if (SDL_LockTexture(hdTex, 0, &texPtr, &texPitch) == 0) {
+			for (int j = 0; j < h; ++j) {
+				memcpy((uint8_t *)texPtr + j * texPitch,
+					buf + j * pitch, w * sizeof(uint32_t));
+			}
+			SDL_UnlockTexture(hdTex);
+		}
+		SDL_RenderClear(_renderer);
+		SDL_RenderCopy(_renderer, hdTex, 0, 0);
+		SDL_RenderPresent(_renderer);
+		SDL_DestroyTexture(hdTex);
+	}
 }
 
 void System_SDL2::prepareScaledGfx(const char *caption, bool fullscreen, bool widescreen, bool yuv) {

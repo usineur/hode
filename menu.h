@@ -91,6 +91,8 @@ struct Menu {
 	int _controlsNum;
 	int _joystickControlsNum;
 	int _keyboardControlsNum;
+	int _kbdButton;             // 0=OK, 1=Cancel, 2=Test, when _keyboardControlsNum==3
+	uint8_t _kbdControlsBackup[32]; // snapshot of controls[] for Cancel
 	int _difficultyNum;
 	int _soundNum;
 	uint8_t _soundVolume;

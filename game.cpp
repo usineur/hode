@@ -3,7 +3,11 @@
  * Copyright (C) 2009-2011 Gregory Montoir (cyx@users.sourceforge.net)
  */
 
+#include <sys/stat.h>
+#include "automation_api.h"
 #include "game.h"
+#include "hd_compositor.h"
+#include "sprite_upscaler.h"
 #include "fileio.h"
 #include "level.h"
 #include "lzw.h"
@@ -24,6 +28,13 @@ Game::Game(const char *dataPath, const char *savePath, uint32_t cheats)
 	_paf = new PafPlayer(&_fs);
 	_rnd.setSeed();
 	_video = new Video();
+	_hdCompositor = 0;
+	_automationApi = 0;
+	memset(&_interpState, 0, sizeof(_interpState));
+	_interpolationEnabled = false;
+	_hdPrerenderEnabled = false;
+	_hdPrerenderedMask = 0;
+	_pafPrerenderedMask = 0;
 	_cheats = cheats;
 	_playDemo = false;
 
@@ -1829,6 +1840,15 @@ void Game::drawScreen() {
 	memcpy(_video->_frontLayer, _video->_backgroundLayer, Video::W * Video::H);
 	_video->copyYuvBackBuffer();
 
+	// Begin HD frame if enabled
+	if (_hdCompositor && _hdCompositor->isEnabled()) {
+		LvlBackgroundData *bgDat = &_res->_resLvlScreenBackgroundDataTable[_res->_currentScreenResourceNum];
+		_hdCompositor->beginFrame(_video->_backgroundLayer, _video->_palette,
+			_res->_currentScreenResourceNum, bgDat->currentBackgroundId);
+	}
+
+	const bool hdEnabled = _hdCompositor && _hdCompositor->isEnabled();
+
 	// redraw background animation sprites
 	LvlBackgroundData *dat = &_res->_resLvlScreenBackgroundDataTable[_res->_currentScreenResourceNum];
 	if (_res->_isPsx) {
@@ -1841,6 +1861,9 @@ void Game::drawScreen() {
 		for (Sprite *spr = _typeSpritesList[0]; spr; spr = spr->nextPtr) {
 			if ((spr->num & 0x1F) == 0) {
 				_video->decodeSPR(spr->bitmapBits, _video->_backgroundLayer, spr->xPos, spr->yPos, 0, spr->w, spr->h);
+				if (hdEnabled) {
+					_hdCompositor->drawSprite(spr->bitmapBits, spr->xPos, spr->yPos, spr->w, spr->h, 0);
+				}
 			}
 		}
 	}
@@ -1855,7 +1878,11 @@ void Game::drawScreen() {
 	for (int i = 1; i < 4; ++i) {
 		for (Sprite *spr = _typeSpritesList[i]; spr; spr = spr->nextPtr) {
 			if ((spr->num & 0x1000) != 0) {
-				_video->decodeSPR(spr->bitmapBits, _video->_frontLayer, spr->xPos, spr->yPos, (spr->num >> 0xE) & 3, spr->w, spr->h);
+				const uint8_t flipFlags = (spr->num >> 0xE) & 3;
+				_video->decodeSPR(spr->bitmapBits, _video->_frontLayer, spr->xPos, spr->yPos, flipFlags, spr->w, spr->h);
+				if (hdEnabled) {
+					_hdCompositor->drawSprite(spr->bitmapBits, spr->xPos, spr->yPos, spr->w, spr->h, flipFlags);
+				}
 			}
 		}
 	}
@@ -1867,7 +1894,11 @@ void Game::drawScreen() {
 	for (int i = 4; i < 8; ++i) {
 		for (Sprite *spr = _typeSpritesList[i]; spr; spr = spr->nextPtr) {
 			if ((spr->num & 0x1000) != 0) {
-				_video->decodeSPR(spr->bitmapBits, _video->_frontLayer, spr->xPos, spr->yPos, (spr->num >> 0xE) & 3, spr->w, spr->h);
+				const uint8_t flipFlags = (spr->num >> 0xE) & 3;
+				_video->decodeSPR(spr->bitmapBits, _video->_frontLayer, spr->xPos, spr->yPos, flipFlags, spr->w, spr->h);
+				if (hdEnabled) {
+					_hdCompositor->drawSprite(spr->bitmapBits, spr->xPos, spr->yPos, spr->w, spr->h, flipFlags);
+				}
 			}
 		}
 	}
@@ -1893,7 +1924,11 @@ void Game::drawScreen() {
 	for (int i = 1; i < 12; ++i) {
 		for (Sprite *spr = _typeSpritesList[i]; spr; spr = spr->nextPtr) {
 			if ((spr->num & 0x1000) != 0) {
-				_video->decodeSPR(spr->bitmapBits, _video->_frontLayer, spr->xPos, spr->yPos, (spr->num >> 0xE) & 3, spr->w, spr->h);
+				const uint8_t flipFlags = (spr->num >> 0xE) & 3;
+				_video->decodeSPR(spr->bitmapBits, _video->_frontLayer, spr->xPos, spr->yPos, flipFlags, spr->w, spr->h);
+				if (hdEnabled) {
+					_hdCompositor->drawSprite(spr->bitmapBits, spr->xPos, spr->yPos, spr->w, spr->h, flipFlags);
+				}
 			}
 		}
 	}
@@ -1905,14 +1940,170 @@ void Game::drawScreen() {
 	for (int i = 12; i <= 24; ++i) {
 		for (Sprite *spr = _typeSpritesList[i]; spr; spr = spr->nextPtr) {
 			if ((spr->num & 0x1000) != 0) {
-				_video->decodeSPR(spr->bitmapBits, _video->_frontLayer, spr->xPos, spr->yPos, (spr->num >> 0xE) & 3, spr->w, spr->h);
+				const uint8_t flipFlags = (spr->num >> 0xE) & 3;
+				_video->decodeSPR(spr->bitmapBits, _video->_frontLayer, spr->xPos, spr->yPos, flipFlags, spr->w, spr->h);
+				if (hdEnabled) {
+					_hdCompositor->drawSprite(spr->bitmapBits, spr->xPos, spr->yPos, spr->w, spr->h, flipFlags);
+				}
 			}
 		}
 	}
 }
 
+void Game::saveInterpolationState() {
+	for (int i = 0; i < kMaxSprites; ++i) {
+		_interpState.sprites[i].prevX = _interpState.sprites[i].currX;
+		_interpState.sprites[i].prevY = _interpState.sprites[i].currY;
+		_interpState.sprites[i].currX = _spritesTable[i].xPos;
+		_interpState.sprites[i].currY = _spritesTable[i].yPos;
+	}
+	_interpState.prevAndyX = _interpState.currAndyX;
+	_interpState.prevAndyY = _interpState.currAndyY;
+	if (_andyObject) {
+		_interpState.currAndyX = _andyObject->xPos;
+		_interpState.currAndyY = _andyObject->yPos;
+	}
+	_interpState.valid = true;
+}
+
+void Game::renderInterpolatedFrame(float t) {
+	if (!_interpState.valid || t >= 1.0f) {
+		// No interpolation data or past current frame: use actual positions
+		drawScreen();
+		return;
+	}
+
+	// Temporarily modify sprite positions for interpolated render
+	int16_t savedX[kMaxSprites], savedY[kMaxSprites];
+	for (int i = 0; i < kMaxSprites; ++i) {
+		savedX[i] = _spritesTable[i].xPos;
+		savedY[i] = _spritesTable[i].yPos;
+		const int16_t dx = _interpState.sprites[i].currX - _interpState.sprites[i].prevX;
+		const int16_t dy = _interpState.sprites[i].currY - _interpState.sprites[i].prevY;
+		// Only interpolate if movement is small (avoid teleport artifacts)
+		if (abs(dx) < 32 && abs(dy) < 32) {
+			_spritesTable[i].xPos = _interpState.sprites[i].prevX + (int16_t)(dx * t);
+			_spritesTable[i].yPos = _interpState.sprites[i].prevY + (int16_t)(dy * t);
+		}
+	}
+
+	drawScreen();
+
+	// Restore original positions
+	for (int i = 0; i < kMaxSprites; ++i) {
+		_spritesTable[i].xPos = savedX[i];
+		_spritesTable[i].yPos = savedY[i];
+	}
+}
+
 static void gamePafCallback(void *userdata) {
 	((Game *)userdata)->resetSound();
+}
+
+static bool pafLoadCachedFrame(const char *cachePath, int scale, int videoNum, int frameNum,
+	uint32_t *dst, int dstW, int dstH)
+{
+	if (!cachePath) return false;
+	char path[512];
+	snprintf(path, sizeof(path), "%s/paf/%dx/v%02d/f%04d.raw", cachePath, scale, videoNum, frameNum);
+	FILE *fp = fopen(path, "rb");
+	if (!fp) return false;
+	int32_t w, h;
+	if (fread(&w, 4, 1, fp) != 1 || fread(&h, 4, 1, fp) != 1 || w != dstW || h != dstH) {
+		fclose(fp);
+		return false;
+	}
+	const bool ok = (int)fread(dst, sizeof(uint32_t), dstW * dstH, fp) == dstW * dstH;
+	fclose(fp);
+	return ok;
+}
+
+static void pafSaveCachedFrame(const char *cachePath, int scale, int videoNum, int frameNum,
+	const uint32_t *src, int w, int h)
+{
+	if (!cachePath) return;
+	char dir1[512], dir2[512], path[512];
+	snprintf(dir1, sizeof(dir1), "%s/paf", cachePath);
+	snprintf(dir2, sizeof(dir2), "%s/paf/%dx", cachePath, scale);
+	char dir3[512];
+	snprintf(dir3, sizeof(dir3), "%s/paf/%dx/v%02d", cachePath, scale, videoNum);
+	mkdir(dir1, 0755);
+	mkdir(dir2, 0755);
+	mkdir(dir3, 0755);
+	snprintf(path, sizeof(path), "%s/paf/%dx/v%02d/f%04d.raw", cachePath, scale, videoNum, frameNum);
+	FILE *fp = fopen(path, "wb");
+	if (!fp) return;
+	int32_t dw = w, dh = h;
+	fwrite(&dw, 4, 1, fp);
+	fwrite(&dh, 4, 1, fp);
+	fwrite(src, sizeof(uint32_t), w * h, fp);
+	fclose(fp);
+}
+
+static void gamePafFrameCallback(void *userdata, int num, const uint8_t *frame) {
+	Game *g = (Game *)userdata;
+	const bool prerender = g->_paf->_prerenderMode;
+	// Send the original indexed frame for normal rendering — skip during
+	// prerender so the cutscene doesn't visibly play on screen.
+	if (!prerender) {
+		g_system->copyRect(0, 0, PafPlayer::kVideoWidth, PafPlayer::kVideoHeight,
+			frame, PafPlayer::kVideoWidth);
+	}
+	// If HD compositor is active, upscale the PAF frame
+	if (g->_hdCompositor && g->_hdCompositor->isEnabled()) {
+		uint32_t *hdBuf; int hdW, hdH;
+		g->_hdCompositor->getFramebuffer(&hdBuf, &hdW, &hdH);
+		const int videoNum = g->_paf->_videoNum;
+		const char *cachePath = g->_hdCompositor->_upscaler->_diskCacheEnabled ?
+			g->_hdCompositor->_upscaler->_diskCachePath : 0;
+		// Strip the "/Nx" suffix to get the base cache path
+		char baseCachePath[256] = {0};
+		if (cachePath) {
+			strncpy(baseCachePath, cachePath, sizeof(baseCachePath) - 1);
+			char *slash = strrchr(baseCachePath, '/');
+			if (slash) *slash = 0; // remove "/6x" etc
+		}
+
+		// Try loading cached frame — during prerender there is no point in
+		// going through the upscaler if a cache hit already exists; we just
+		// move on to the next frame.
+		if (baseCachePath[0] && pafLoadCachedFrame(baseCachePath, g->_hdCompositor->_scale,
+				videoNum, num, hdBuf, hdW, hdH)) {
+			if (!prerender) {
+				g_system->copyRectRGBA(0, 0, hdW, hdH, hdBuf, hdW);
+			}
+			return;
+		}
+
+		// Upscale live
+		const uint8_t *pal = g->_paf->_paletteBuffer;
+		g->_hdCompositor->updatePalette(pal, 256, 6);
+		g->_hdCompositor->beginFrame(frame, pal, -2, -2);
+		g->_hdCompositor->endFrame();
+		g->_hdCompositor->getFramebuffer(&hdBuf, &hdW, &hdH);
+		if (!prerender) {
+			g_system->copyRectRGBA(0, 0, hdW, hdH, hdBuf, hdW);
+		}
+
+		// Save to disk cache
+		if (baseCachePath[0]) {
+			pafSaveCachedFrame(baseCachePath, g->_hdCompositor->_scale,
+				videoNum, num, hdBuf, hdW, hdH);
+		}
+	}
+	// Advance the unified prerender progress bar.
+	if (prerender && g->_hdCompositor && g->_hdCompositor->_progress) {
+		PrerenderProgress *p = g->_hdCompositor->_progress;
+		++p->done;
+		const int bar = p->done * 64 / p->total;
+		if (bar != p->lastBar) {
+			struct timespec t1; clock_gettime(CLOCK_MONOTONIC, &t1);
+			const double elapsed = (t1.tv_sec - p->t0.tv_sec) +
+				(t1.tv_nsec - p->t0.tv_nsec) / 1e9;
+			HdCompositor_drawProgressBar(p->label, p->done, p->total, elapsed);
+			p->lastBar = bar;
+		}
+	}
 }
 
 void Game::mainLoop(int level, int checkpoint, bool levelChanged) {
@@ -1942,7 +2133,7 @@ void Game::mainLoop(int level, int checkpoint, bool levelChanged) {
 	}
 
 	PafCallback pafCb;
-	pafCb.frameProc = 0;
+	pafCb.frameProc = (_hdCompositor && _hdCompositor->isEnabled()) ? gamePafFrameCallback : 0;
 	pafCb.endProc = gamePafCallback;
 	pafCb.userdata = this;
 	_paf->setCallback(&pafCb);
@@ -1996,14 +2187,126 @@ void Game::mainLoop(int level, int checkpoint, bool levelChanged) {
 	resetShootLvlObjectDataTable();
 	callLevel_initialize();
 	restartLevel();
-	while (true) {
-		const int frameTimeStamp = g_system->getTimeStamp() + _frameMs;
-		levelMainLoop();
-		if (g_system->inp.quit || _endLevel) {
-			break;
+	if (_hdPrerenderEnabled && _hdCompositor && _hdCompositor->isEnabled()
+		&& !(_hdPrerenderedMask & (1u << _currentLevel))) {
+		// Seed compositor palette from the level's first screen background
+		// (setupBackgroundBitmap has already populated _displayPaletteBuffer).
+		_video->updateGamePalette(_video->_displayPaletteBuffer);
+		_hdCompositor->updatePalette(_video->_palette, 256, 6);
+		static const char *const kLevelNames[] = {
+			"rock","fort","pwr1","isld","lava","pwr2","lar1","lar2","dark"
+		};
+		const char *lvlName = (_currentLevel >= 0 && _currentLevel < 9)
+			? kLevelNames[_currentLevel] : "?";
+
+		// Decide which PAFs to prerender alongside the sprites.
+		uint8_t pafs[8];
+		int pafCount = 0;
+		if (!_paf->_skipCutscenes) {
+			static const uint8_t kInGameClips[] = {
+				22, // CanyonAndyFallingCannon
+				23, // CanyonAndyFalling
+				24, // IslandAndyFalling
+			};
+			for (size_t i = 0; i < sizeof(kInGameClips); ++i) {
+				const uint8_t v = kInGameClips[i];
+				if (!(_pafPrerenderedMask & (1u << v))) {
+					pafs[pafCount++] = v;
+				}
+			}
+			if (_currentLevel >= 0 && _currentLevel < 9) {
+				const uint8_t v = _cutscenes[_currentLevel];
+				if (!(_pafPrerenderedMask & (1u << v))) {
+					pafs[pafCount++] = v;
+				}
+			}
 		}
-		const int delay = MAX<int>(10, frameTimeStamp - g_system->getTimeStamp());
-		g_system->sleep(delay);
+
+		// Count up the total work units for one unified progress bar.
+		PrerenderProgress prog;
+		prog.done = 0;
+		prog.lastBar = -1;
+		clock_gettime(CLOCK_MONOTONIC, &prog.t0);
+		snprintf(prog.label, sizeof(prog.label),
+			"prerender level %d (%s)", _currentLevel, lvlName);
+		int spriteUnits = _hdCompositor->countLevelSpriteFrames(_res);
+		int pafUnits[8] = {0};
+		for (int i = 0; i < pafCount; ++i) {
+			pafUnits[i] = _paf->peekFramesCount(pafs[i]);
+		}
+		int total = spriteUnits;
+		for (int i = 0; i < pafCount; ++i) total += pafUnits[i];
+		prog.total = total > 0 ? total : 1;
+
+		_hdCompositor->_progress = &prog;
+		_hdCompositor->prerenderLevelSprites(_res, prog.label);
+		for (int i = 0; i < pafCount; ++i) {
+			_paf->prerender(pafs[i]);
+			_pafPrerenderedMask |= (1u << pafs[i]);
+			if (g_system->inp.quit) break;
+		}
+		_hdCompositor->_progress = 0;
+		// Force a final 100% redraw and terminate the line.
+		struct timespec t1; clock_gettime(CLOCK_MONOTONIC, &t1);
+		const double elapsed = (t1.tv_sec - prog.t0.tv_sec) +
+			(t1.tv_nsec - prog.t0.tv_nsec) / 1e9;
+		HdCompositor_drawProgressBar(prog.label, prog.total, prog.total, elapsed);
+		fprintf(stderr, "\n");
+
+		// Pump SDL so the window doesn't sit on a stale loading-screen frame
+		// until the first gameplay drawScreen happens. Also re-baseline input
+		// edge state so any SELECT key the user pressed before prerender
+		// doesn't fire a phantom keyPressed/keyReleased on the first tick.
+		g_system->processEvents();
+		g_system->inp.prevMask = g_system->inp.mask;
+		g_system->updateScreen(false);
+
+		_hdPrerenderedMask |= (1u << _currentLevel);
+	}
+	if (_interpolationEnabled) {
+		// Decoupled render/logic loop: game tick at 12.5Hz, render at ~60Hz
+		uint32_t nextGameTick = g_system->getTimeStamp();
+		uint32_t lastGameTick = nextGameTick;
+		while (true) {
+			const uint32_t now = g_system->getTimeStamp();
+
+			// Game tick
+			if (now >= nextGameTick) {
+				saveInterpolationState();
+				levelMainLoop();
+				if (g_system->inp.quit || _endLevel) {
+					break;
+				}
+				lastGameTick = now;
+				nextGameTick = now + _frameMs;
+			}
+
+			// Interpolated render at ~60Hz
+			const float t = (float)(now - lastGameTick) / (float)_frameMs;
+			renderInterpolatedFrame(CLIP(t, 0.f, 1.f));
+
+			const uint32_t nextRender = now + kRenderMs;
+			const uint32_t sleepUntil = MIN(nextRender, nextGameTick);
+			const int delay = MAX<int>(1, (int)(sleepUntil - g_system->getTimeStamp()));
+			g_system->sleep(delay);
+		}
+	} else {
+		// Original loop: logic + render at 12.5Hz
+		while (true) {
+			const int frameTimeStamp = g_system->getTimeStamp() + _frameMs;
+			if (_automationApi && _automationApi->_stepMode) {
+				_automationApi->waitForStepCommand();
+			}
+			levelMainLoop();
+			if (g_system->inp.quit || _endLevel) {
+				break;
+			}
+			if (_automationApi) {
+				_automationApi->notifyFrameComplete();
+			}
+			const int delay = MAX<int>(10, frameTimeStamp - g_system->getTimeStamp());
+			g_system->sleep(delay);
+		}
 	}
 	_animBackgroundDataCount = 0;
 	callLevel_terminate();
@@ -2524,6 +2827,13 @@ void Game::levelMainLoop() {
 	_directionKeyMask = 0;
 	_actionKeyMask = 0;
 	updateInput();
+	if (_automationApi) {
+		_automationApi->processCommands();
+		if (_automationApi->hasInjectedInput()) {
+			_directionKeyMask = _automationApi->getDirectionMask();
+			_actionKeyMask = _automationApi->getActionMask();
+		}
+	}
 	if (_playDemo && _res->_demOffset < _res->_dem.keyMaskLen) {
 		_andyObject->actionKeyMask = _res->_dem.actionKeyMask[_res->_demOffset];
 		_andyObject->directionKeyMask = _res->_dem.directionKeyMask[_res->_demOffset];
@@ -2585,16 +2895,26 @@ void Game::levelMainLoop() {
 		snprintf(buffer, sizeof(buffer), "P%d S%02d %d R%d", _currentLevel, _andyObject->screenNum, _res->_screensState[_andyObject->screenNum].s0, _level->_checkpoint);
 		_video->drawString(buffer, (Video::W - strlen(buffer) * 8) / 2, 8, _video->findWhiteColor(), _video->_frontLayer);
 	}
+	// Finalize HD frame
+	if (_hdCompositor && _hdCompositor->isEnabled()) {
+		_hdCompositor->endFrame();
+	}
 	if (_shakeScreenDuration != 0 || _levelRestartCounter != 0 || _video->_displayShadowLayer) {
 		shakeScreen();
 		_video->updateGameDisplay(_video->_displayShadowLayer ? _video->_shadowLayer : _video->_frontLayer);
 	} else {
 		_video->updateGameDisplay(_video->_frontLayer);
 	}
+	// Send HD framebuffer to display if enabled
+	if (_hdCompositor && _hdCompositor->isEnabled()) {
+		uint32_t *hdBuf; int hdW, hdH;
+		_hdCompositor->getFramebuffer(&hdBuf, &hdW, &hdH);
+		g_system->copyRectRGBA(0, 0, hdW, hdH, hdBuf, hdW);
+	}
 	_rnd.update();
 	g_system->processEvents();
-	if (g_system->inp.keyPressed(SYS_INP_ESC) || g_system->inp.exit) { // display exit confirmation screen
-		if (displayHintScreen(-1, 0)) {
+	if (g_system->inp.keyPressed(SYS_INP_ESC)) {
+		if (displayHintScreen(-1, 0)) { // pause/exit screen
 			g_system->inp.quit = true;
 		}
 	} else {

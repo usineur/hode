@@ -19,8 +19,6 @@
 
 struct PlayerInput {
 	uint8_t prevMask, mask;
-	bool skip;
-	bool exit;
 	bool quit;
 	bool screenshot;
 
@@ -60,6 +58,10 @@ struct System {
 	virtual void processEvents() = 0;
 	virtual void sleep(int duration) = 0;
 	virtual uint32_t getTimeStamp() = 0;
+
+	virtual int waitForKeyPress() { return -1; }
+	virtual void applyKeyboardControls(const uint8_t *controls) {}
+	virtual void copyRectRGBA(int x, int y, int w, int h, const uint32_t *buf, int pitch) {}
 
 	virtual void startAudio(AudioCallback callback) = 0;
 	virtual void stopAudio() = 0;

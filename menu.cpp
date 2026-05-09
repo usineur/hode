@@ -1,4 +1,5 @@
 
+#include "automation_api.h"
 #include "game.h"
 #include "menu.h"
 #include "lzw.h"
@@ -463,6 +464,9 @@ int Menu::handleTitleScreen() {
 	int currentOption = kTitleScreen_Play;
 	while (1) {
 		g_system->processEvents();
+		if (_g->_automationApi) {
+			_g->_automationApi->processCommands();
+		}
 		if (g_system->inp.quit) {
 			currentOption = kTitleScreen_Quit;
 			break;
@@ -836,7 +840,7 @@ void Menu::handleSettingsScreen(int num) {
 		}
 		return;
 	} else if (num == kCursor_Left) {
-		if (_settingNum != kSettingNum_Confirm && _settingNum > 1) { // 'controls' not implemented
+		if (_settingNum != kSettingNum_Confirm && _settingNum > 0) {
 			playSound(kSound_0x70);
 			--_settingNum;
 			_iconsSprites[0x27].num = 0;
@@ -1100,15 +1104,61 @@ void Menu::handleJoystickControlsScreen(int num) {
 	g_system->sleep(kDelayMs);
 }
 
+static uint8_t scancodeToFontCode(uint8_t scancode) {
+	// SDL_SCANCODE_A(4)..Z(29) -> 'A'(0x41)..'Z'(0x5A)
+	if (scancode >= 4 && scancode <= 29) {
+		return 0x41 + (scancode - 4);
+	}
+	// SDL_SCANCODE_1(30)..9(38) -> '1'(0x31)..'9'(0x39)
+	if (scancode >= 30 && scancode <= 38) {
+		return 0x31 + (scancode - 30);
+	}
+	// SDL_SCANCODE_0(39) -> '0'(0x30)
+	if (scancode == 39) return 0x30;
+	// SDL_SCANCODE_LCTRL(224) -> 0x11 (special glyph)
+	if (scancode == 224 || scancode == 228) return 0x11;
+	// SDL_SCANCODE_LSHIFT(225) -> 0x10 (special glyph)
+	if (scancode == 225 || scancode == 229) return 0x10;
+	// SDL_SCANCODE_LALT(226) -> 0x12 (special glyph)
+	if (scancode == 226 || scancode == 230) return 0x12;
+	// SDL_SCANCODE_SPACE(44), RETURN(40), KP_ENTER(88), TAB(43), BACKSPACE(42),
+	// LGUI(227)/RGUI(231). The font often has no glyphs for these, so the
+	// drawing helper will skip — but the binding itself still works.
+	if (scancode == 44) return 0x13;
+	if (scancode == 40 || scancode == 88) return 0x14;
+	if (scancode == 43) return 0x15;
+	if (scancode == 42) return 0x16;
+	if (scancode == 227 || scancode == 231) return 0x17;
+	return 0;
+}
+
 void Menu::drawKeyboardKeyCode(int num) {
 	for (int i = 0; i < 2; ++i) {
 		const uint8_t code = _config->players[_config->currentPlayer].controls[16 + 2 * num + i];
-		if (code != 0) {
-			static const uint8_t xPos[] = { 20, 79, 138, 197 };
-			const int chr = _video->findStringCharacterFontIndex(code);
+		if (code == 0) continue;
+		static const uint8_t xPos[] = { 20, 79, 138, 197 };
+		const int x = xPos[num] + i * 23;
+		const uint8_t displayCode = scancodeToFontCode(code);
+		bool drawn = false;
+		if (displayCode != 0) {
+			const int chr = _video->findStringCharacterFontIndex(displayCode);
 			if (chr != 255) {
-				_video->drawStringCharacter(xPos[num] + i * 23, 111, chr, _res->_fontDefaultColor, _video->_frontLayer);
+				_video->drawStringCharacter(x, 111, chr, _res->_fontDefaultColor, _video->_frontLayer);
+				drawn = true;
 			}
+		}
+		if (!drawn) {
+			// Fallback to a short text label for keys without a font glyph
+			// (Space/Enter/Tab/Backspace/Win/etc.) so the binding is visible.
+			const char *label = "?";
+			switch (code) {
+			case 44:           label = "SP"; break; // Space
+			case 40: case 88:  label = "EN"; break; // Enter / Numpad Enter
+			case 43:           label = "TB"; break; // Tab
+			case 42:           label = "BS"; break; // Backspace
+			case 227: case 231: label = "WN"; break; // Win/Cmd
+			}
+			_video->drawString(label, x, 111, _res->_fontDefaultColor, _video->_frontLayer);
 		}
 	}
 }
@@ -1146,9 +1196,12 @@ void Menu::drawKeyboardControlsScreen() {
 		drawSprite(&_iconsSprites[0x1B], _iconsSpritesData, 0);
 	} else if (_keyboardControlsNum == 8) {
 		drawSprite(&_iconsSprites[0x10], _iconsSpritesData, 4);
-		static const int keyboardMask = 0;
-		int mask = keyboardMask;
-		const int flag = (((keyboardMask & 5) - 5) != 0) ? 0 : 1;
+		// Test mode: read live action bits so the icons highlight while the
+		// user presses their bound keys. Map SYS_INP_RUN/JUMP/SHOOT (0x10/0x20/0x40)
+		// down to bits 0/1/2 used by the existing icon-highlight logic.
+		const int liveMask = (g_system->inp.mask >> 4) & 7;
+		int mask = liveMask;
+		const int flag = (((liveMask & 5) - 5) != 0) ? 0 : 1;
 		if (((mask & 1) != 0 && flag == 0) || _iconsSprites[0x21].num != 0) {
 			drawSpriteAnim(_iconsSprites, _iconsSpritesData, 0x21);
 		} else {
@@ -1174,14 +1227,73 @@ void Menu::drawKeyboardControlsScreen() {
 	drawKeyboardKeyCode(1);
 	drawKeyboardKeyCode(2);
 	drawKeyboardKeyCode(3);
+	if (_keyboardControlsNum == 3) {
+		// Indicator for the OK/Cancel/Test row (the original screen state
+		// machine treats them as a single state, so we sub-divide here and
+		// label which sub-button is currently active).
+		static const char *const names[] = { "> OK", "> CANCEL", "> TEST" };
+		const int idx = (_kbdButton >= 0 && _kbdButton <= 2) ? _kbdButton : 0;
+		_video->drawString(names[idx], 100, 170,
+			_res->_fontDefaultColor, _video->_frontLayer);
+	} else if (_keyboardControlsNum == 8) {
+		_video->drawString("TEST - PRESS YOUR KEYS, ARROW TO EXIT",
+			16, 170, _res->_fontDefaultColor, _video->_frontLayer);
+	}
 	refreshScreen();
 }
 
 void Menu::handleKeyboardControlsScreen(int num) {
 	const uint8_t *data = &_optionData[num * 8];
 	num = data[5];
-	if (num == 1) {
-		if (_keyboardControlsNum == 0) {
+	if (num == 0) {
+		if (_keyboardControlsNum >= 4 && _keyboardControlsNum <= 7) {
+			const int action = _keyboardControlsNum - 4;
+			playSound(kSound_0x78);
+			drawKeyboardControlsScreen();
+			const int scancode = g_system->waitForKeyPress();
+			if (scancode > 0) {
+				uint8_t *ctrl = _config->players[_config->currentPlayer].controls;
+				// Each key may belong to only one action: clear any prior
+				// binding of this scancode (across all actions and slots).
+				for (int i = 16; i < 24; ++i) {
+					if (ctrl[i] == (uint8_t)scancode) {
+						ctrl[i] = 0;
+					}
+				}
+				if (ctrl[16 + 2 * action] == 0) {
+					ctrl[16 + 2 * action] = (uint8_t)scancode;
+				} else {
+					ctrl[16 + 2 * action + 1] = (uint8_t)scancode;
+				}
+				g_system->applyKeyboardControls(ctrl);
+			}
+		} else if (_keyboardControlsNum == 3) {
+			playSound(kSound_0x78);
+			if (_kbdButton == 0) {
+				// OK: keep changes and leave the screen.
+				_condMask = 0x80;
+				return;
+			} else if (_kbdButton == 1) {
+				// Cancel: revert controls[] to the entry snapshot, then leave.
+				memcpy(_config->players[_config->currentPlayer].controls,
+					_kbdControlsBackup, sizeof(_kbdControlsBackup));
+				g_system->applyKeyboardControls(
+					_config->players[_config->currentPlayer].controls);
+				_condMask = 0x80;
+				return;
+			} else {
+				// Test: enter live key-press visualisation (state 8).
+				_keyboardControlsNum = 8;
+			}
+		}
+		drawKeyboardControlsScreen();
+		g_system->sleep(kDelayMs);
+		return;
+	} else if (num == 1) {
+		if (_keyboardControlsNum == 3 && _kbdButton > 0) {
+			playSound(kSound_0x70);
+			--_kbdButton;
+		} else if (_keyboardControlsNum == 0) {
 			playSound(kSound_0x70);
 			_keyboardControlsNum = 1;
 		} else if (_keyboardControlsNum == 2) {
@@ -1204,7 +1316,10 @@ void Menu::handleKeyboardControlsScreen(int num) {
 			_keyboardControlsNum = 2;
 		}
 	} else if (num == 2) {
-		if (_keyboardControlsNum == 0) {
+		if (_keyboardControlsNum == 3 && _kbdButton < 2) {
+			playSound(kSound_0x70);
+			++_kbdButton;
+		} else if (_keyboardControlsNum == 0) {
 			playSound(kSound_0x70);
 			_keyboardControlsNum = 2;
 		} else if (_keyboardControlsNum == 1) {
@@ -1726,6 +1841,9 @@ bool Menu::handleOptions() {
 	_condMask = 0;
 	while (1) {
 		g_system->processEvents();
+		if (_g->_automationApi) {
+			_g->_automationApi->processCommands();
+		}
 		if (g_system->inp.quit) {
 			break;
 		}
@@ -1803,6 +1921,10 @@ bool Menu::handleOptions() {
 					g_system->setPalette(_paletteBuffer, 256, 6);
 				}
 				_keyboardControlsNum = 1;
+				_kbdButton = 0; // OK
+				memcpy(_kbdControlsBackup,
+					_config->players[_config->currentPlayer].controls,
+					sizeof(_kbdControlsBackup));
 			}
 			handleKeyboardControlsScreen(num);
 			break;

@@ -10,26 +10,21 @@
 #include <getopt.h>
 #include <sys/stat.h>
 
+#include "automation_api.h"
 #include "game.h"
+#include "hd_compositor.h"
 #include "menu.h"
 #include "mixer.h"
+#include "paf.h"
 #include "paf.h"
 #include "util.h"
 #include "resource.h"
 #include "system.h"
 #include "video.h"
 
-#ifdef __SWITCH__
-#include <switch.h>
-#endif
-
 static const char *_title = "Heart of Darkness";
 
-#ifdef __vita__
-static const char *_configIni = "ux0:data/hode/hode.ini";
-#else
 static const char *_configIni = "hode.ini";
-#endif
 
 static const char *_usage =
 	"hode - Heart of Darkness Interpreter\n"
@@ -42,6 +37,13 @@ static const char *_usage =
 
 static bool _fullscreen = false;
 static bool _widescreen = false;
+static bool _hdMode = false;
+static int _hdScale = 0; // 0 = auto, or explicit scale factor
+static bool _hdWidescreen = false;
+static bool _smoothAnim = false;
+static bool _hdPrerender = false;
+static char *_automationSocket = 0;
+static char *_hdCachePath = 0;
 
 static const bool _runBenchmark = false;
 static bool _runMenu = true;
@@ -122,6 +124,18 @@ static void handleConfigIni(Game *g, const char *section, const char *name, cons
 			_fullscreen = configBool(value);
 		} else if (strcmp(name, "widescreen") == 0) {
 			_widescreen = configBool(value);
+		} else if (strcmp(name, "hd_mode") == 0) {
+			_hdMode = configBool(value);
+		} else if (strcmp(name, "hd_scale") == 0) {
+			_hdScale = atoi(value);
+		} else if (strcmp(name, "hd_widescreen") == 0) {
+			_hdWidescreen = configBool(value);
+		} else if (strcmp(name, "hd_cache") == 0) {
+			_hdCachePath = strdup(value);
+		} else if (strcmp(name, "automation_socket") == 0) {
+			_automationSocket = strdup(value);
+		} else if (strcmp(name, "smooth_anim") == 0) {
+			_smoothAnim = configBool(value);
 		}
 	}
 }
@@ -166,17 +180,8 @@ static void readConfigIni(const char *filename, Game *g) {
 }
 
 int main(int argc, char *argv[]) {
-#ifdef __SWITCH__
-	socketInitializeDefault();
-	nxlinkStdio();
-#endif
-#ifdef __vita__
-	const char *dataPath = "ux0:data/hode";
-	const char *savePath = "ux0:data/hode";
-#else
 	char *dataPath = 0;
 	char *savePath = 0;
-#endif
 	int level = 0;
 	int checkpoint = 0;
 	bool resume = true; // resume game from 'setup.cfg'
@@ -216,6 +221,15 @@ int main(int argc, char *argv[]) {
 				{ "checkpoint", required_argument, 0, 4 },
 				{ "debug",      required_argument, 0, 5 },
 				{ "cheats",     required_argument, 0, 6 },
+				{ "hd",         no_argument,       0, 7 },
+				{ "automation", required_argument, 0, 8 },
+				{ "smooth",     no_argument,       0, 9 },
+				{ "hd-scale",   required_argument, 0, 10 },
+				{ "hd-wide",    no_argument,       0, 11 },
+				{ "hd-cache",   required_argument, 0, 12 },
+				{ "4k",         no_argument,       0, 13 },
+				{ "fullhd",     no_argument,       0, 14 },
+				{ "prerender",  no_argument,       0, 15 },
 				{ 0, 0, 0, 0 },
 			};
 			int index;
@@ -253,6 +267,36 @@ int main(int argc, char *argv[]) {
 			case 6:
 				cheats |= atoi(optarg);
 				break;
+			case 7:
+				_hdMode = true;
+				break;
+			case 8:
+				_automationSocket = strdup(optarg);
+				break;
+			case 9:
+				_smoothAnim = true;
+				break;
+			case 10:
+				_hdMode = true;
+				_hdScale = atoi(optarg);
+				break;
+			case 11:
+				_hdWidescreen = true;
+				break;
+			case 12:
+				_hdCachePath = strdup(optarg);
+				break;
+			case 13:
+				_hdMode = true;
+				_hdScale = HdCompositor::kScale_4K;
+				break;
+			case 14:
+				_hdMode = true;
+				_hdScale = HdCompositor::kScale_FullHD;
+				break;
+			case 15:
+				_hdPrerender = true;
+				break;
 			default:
 				fprintf(stdout, _usage, argv[0]);
 				return -1;
@@ -266,17 +310,50 @@ int main(int argc, char *argv[]) {
 	}
 	// load setup.dat (PC) or setup.dax (PSX)
 	g->_res->loadSetupDat();
+	// Wire the font early — the menu (which runs before Game::mainLoop) draws
+	// strings via _video->drawStringCharacter, which dereferences _font.
+	g->_video->_font = g->_res->_fontBuffer;
 	const bool isPsx = g->_res->_isPsx;
-	g_system->init(_title, Video::W, Video::H, _fullscreen, _widescreen, isPsx);
+	// Make the SDL window 16:9 too when --hd-wide is requested, otherwise the
+	// HdCompositor's wide framebuffer (with colored borders) gets squashed
+	// into a 4:3 window and you only see black bars.
+	const bool sysWidescreen = _widescreen || (_hdMode && _hdWidescreen);
+	g_system->init(_title, Video::W, Video::H, _fullscreen, sysWidescreen, isPsx);
 	setupAudio(g);
 	if (isPsx) {
 		g->_video->initPsx();
+	}
+	if (_hdMode) {
+		const int scale = _hdScale > 0 ? _hdScale : HdCompositor::kDefaultScale;
+		g->_hdCompositor = new HdCompositor(scale, _hdCachePath);
+		g->_hdCompositor->enable(true);
+		if (_hdWidescreen) {
+			g->_hdCompositor->enableWidescreen(true);
+		}
+		fprintf(stdout, "HD mode: %dx scale (%dx%d)%s%s%s\n",
+			scale, Video::W * scale, Video::H * scale,
+			_hdWidescreen ? ", 16:9 widescreen" : "",
+			_hdCachePath ? ", disk cache" : "",
+			_hdPrerender ? ", prerender" : "");
+		g->_hdPrerenderEnabled = _hdPrerender;
+	}
+	if (_smoothAnim) {
+		g->_interpolationEnabled = true;
+	}
+	if (_automationSocket) {
+		g->_automationApi = new AutomationApi();
+		g->_automationApi->init(_automationSocket, g);
+		// When using automation, disable loading screen and menu for faster startup
+		_displayLoadingScreen = false;
+		_runMenu = false;
+		g->_paf->_skipCutscenes = true;
 	}
 	if (_displayLoadingScreen) {
 		g->displayLoadingScreen();
 	}
 	do {
 		g->loadSetupCfg(resume);
+		g_system->applyKeyboardControls(g->_setupConfig.players[g->_setupConfig.currentPlayer].controls);
 		if (_runMenu && resume) {
 			Menu *m = new Menu(g, g->_paf, g->_res, g->_video);
 			const bool runGame = m->mainLoop();
@@ -284,6 +361,7 @@ int main(int argc, char *argv[]) {
 			if (!runGame) {
 				break;
 			}
+			g_system->applyKeyboardControls(g->_setupConfig.players[g->_setupConfig.currentPlayer].controls);
 		}
 		bool levelChanged = false;
 		while (!g_system->inp.quit && level < kLvl_test) {
@@ -306,12 +384,7 @@ int main(int argc, char *argv[]) {
 	g_system->stopAudio();
 	g_system->destroy();
 	delete g;
-#ifndef __vita__
 	free(dataPath);
 	free(savePath);
-#endif
-#ifdef __SWITCH__
-	socketExit();
-#endif
 	return 0;
 }

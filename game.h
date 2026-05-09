@@ -14,7 +14,9 @@
 #include "random.h"
 #include "resource.h"
 
+struct AutomationApi;
 struct Game;
+struct HdCompositor;
 struct Level;
 struct PafPlayer;
 struct Video;
@@ -91,6 +93,8 @@ struct Game {
 	Random _rnd;
 	Resource *_res;
 	Video *_video;
+	HdCompositor *_hdCompositor;
+	AutomationApi *_automationApi;
 	uint32_t _cheats;
 	int _frameMs;
 	int _difficulty;
@@ -108,6 +112,28 @@ struct Game {
 	int _currentLevel;
 	int _currentLevelCheckpoint;
 	bool _endLevel;
+
+	// Animation interpolation (12.5Hz game tick, 60Hz render)
+	struct InterpolationState {
+		struct SpritePos {
+			int16_t prevX, prevY;
+			int16_t currX, currY;
+		};
+		SpritePos sprites[kMaxSprites];
+		int32_t prevAndyX, prevAndyY;
+		int32_t currAndyX, currAndyY;
+		bool valid;
+	};
+	InterpolationState _interpState;
+	bool _interpolationEnabled;
+	bool _hdPrerenderEnabled;
+	uint32_t _hdPrerenderedMask; // bitmask of levels already prerendered
+	uint32_t _pafPrerenderedMask; // bitmask of PAF videos already prerendered
+	static const int kRenderMs = 16; // ~60Hz render rate
+
+	void saveInterpolationState();
+	void renderInterpolatedFrame(float t);
+
 	Sprite _spritesTable[kMaxSprites];
 	Sprite *_spritesNextPtr; // pointer to the next free entry
 	Sprite *_typeSpritesList[kMaxSpriteTypes];
